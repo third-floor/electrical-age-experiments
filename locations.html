@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Identified Locations</title>
+    <link rel="stylesheet" href="css/style.css">
+
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            border: 1px solid #ccc;
+            padding: 0.4rem;
+            vertical-align: top;
+        }
+
+        th {
+            background: #eee;
+            position: sticky;
+            top: 0;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        th:hover {
+            background: #ddd;
+        }
+
+        th.sort-asc::after {
+            content: " ▲";
+            font-size: 0.7rem;
+        }
+
+        th.sort-desc::after {
+            content: " ▼";
+            font-size: 0.7rem;
+        }
+
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+
+        tr:hover {
+            background: #fffacd;
+        }
+
+        input {
+            margin-bottom: 1rem;
+            padding: 0.5rem;
+            width: 100%;
+            font-size: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        details {
+            cursor: pointer;
+        }
+
+        details summary {
+            font-style: italic;
+            color: #cc6600;
+        }
+
+        details summary:hover {
+            text-decoration: underline;
+        }
+
+        details p {
+            margin: 0.5rem 0;
+            padding: 0.5rem;
+            background: #fff8dc;
+            border-left: 3px solid #cc6600;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Identified Locations</h1>
+    <nav>
+        <a href="index.html">Reports</a>
+        <a href="portraits.html">Our Portrait Page</a>
+        <a href="experiments.html">Experiments</a>
+        <a href="people.html">Individuals</a>
+        <a href="locations.html">Locations</a>
+        <a href="articles.html">Articles</a>
+    </nav>
+</header>
+
+<main>
+    <p>
+        This table lists all geographic locations mentioned within the journal pages.
+        Locations are standardized using Getty TGN conventions and linked to their
+        source articles. Click column headers to sort.
+    </p>
+
+    <input
+        type="text"
+        id="searchBox"
+        placeholder="Search locations, articles, context…"
+    >
+
+    <div style="overflow-x:auto;">
+        <table id="locationsTable">
+            <thead>
+                <tr>
+                    <th>Location (as appears)</th>
+                    <th>Standardised Location</th>
+                    <th>Context</th>
+                    <th>Article</th>
+                    <th>Page</th>
+                    <th>File</th>
+                    <th>Text Extract</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- rows injected by JS -->
+            </tbody>
+        </table>
+    </div>
+</main>
+
+<footer>
+    © LLM Research Diary
+</footer>
+
+<script src="js/locations.js"></script>
+
+</body>
+</html>

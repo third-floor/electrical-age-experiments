@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Identified Articles</title>
+    <link rel="stylesheet" href="css/style.css">
+
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            border: 1px solid #ccc;
+            padding: 0.4rem;
+            vertical-align: top;
+        }
+
+        th {
+            background: #eee;
+            position: sticky;
+            top: 0;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        th:hover {
+            background: #ddd;
+        }
+
+        th.sort-asc::after {
+            content: " ▲";
+            font-size: 0.7rem;
+        }
+
+        th.sort-desc::after {
+            content: " ▼";
+            font-size: 0.7rem;
+        }
+
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+
+        tr.article-row:hover {
+            background: #e8f4f8;
+        }
+
+        tr.ad-row:hover {
+            background: #fff3e0;
+        }
+
+        input {
+            margin-bottom: 1rem;
+            padding: 0.5rem;
+            width: 100%;
+            font-size: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.6rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .badge-article {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .badge-advertisement {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        .filter-buttons {
+            margin-bottom: 1rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .filter-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid #ccc;
+            background: white;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .filter-btn:hover {
+            background: #f5f5f5;
+        }
+
+        .filter-btn.active {
+            background: #2c2c2c;
+            color: white;
+            border-color: #2c2c2c;
+        }
+
+        #stats {
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            background: #f5f5f5;
+            border-left: 4px solid #2c2c2c;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Identified Articles & Advertisements</h1>
+    <nav>
+        <a href="index.html">Reports</a>
+        <a href="portraits.html">Our Portrait Page</a>
+        <a href="experiments.html">Experiments</a>
+        <a href="people.html">Individuals</a>
+        <a href="locations.html">Locations</a>
+        <a href="articles.html">Articles</a>
+    </nav>
+</header>
+
+<main>
+    <p>
+        This table lists all articles and advertisements identified within the journal pages.
+        Each entry is categorized and linked to its source page. Click column headers to sort.
+    </p>
+
+    <div id="stats"></div>
+
+    <div class="filter-buttons">
+        <button class="filter-btn active" data-filter="all">Show All</button>
+        <button class="filter-btn" data-filter="articles">Articles Only</button>
+        <button class="filter-btn" data-filter="advertisements">Advertisements Only</button>
+    </div>
+
+    <input
+        type="text"
+        id="searchBox"
+        placeholder="Search article titles…"
+    >
+
+    <div style="overflow-x:auto;">
+        <table id="articlesTable">
+            <thead>
+                <tr>
+                    <th>Article Title</th>
+                    <th>Type</th>
+                    <th>Page</th>
+                    <th>File</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- rows injected by JS -->
+            </tbody>
+        </table>
+    </div>
+</main>
+
+<footer>
+    © LLM Research Diary
+</footer>
+
+<script src="js/articles.js"></script>
+
+</body>
+</html>
