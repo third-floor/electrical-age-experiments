@@ -1,5 +1,10 @@
 fetch("assets/data/persons.json")
-  .then(response => response.json())
+  .then(response => response.text())  // Get as text first
+  .then(text => {
+    // Replace NaN with null to make valid JSON
+    const cleanedText = text.replace(/:\s*NaN\s*([,\}])/g, ': null$1');
+    return JSON.parse(cleanedText);
+  })
   .then(data => {
     const tbody = document.querySelector("#peopleTable tbody");
 
@@ -69,4 +74,6 @@ fetch("assets/data/persons.json")
   })
   .catch(err => {
     console.error("Failed to load persons.json", err);
+    document.querySelector("#peopleTable tbody").innerHTML = 
+      '<tr><td colspan="12" style="text-align: center; padding: 2rem; color: #999;">Failed to load persons data. Please check the console for details.</td></tr>';
   });
