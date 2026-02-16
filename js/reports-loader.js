@@ -3,7 +3,8 @@
 
 // List of report files to load (add new reports to the TOP of this array)
 const reportFiles = [
-  "js/reports/report-001.js",  // Most recent report goes here
+  "js/reports/report-002.js",
+  "js/reports/report-001.js", 
   // Add new reports here as: "js/reports/report-002.js",
   // Format: report-XXX.js where XXX is a sequential number
 ];
