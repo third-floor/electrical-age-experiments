@@ -1,5 +1,5 @@
 // people.js
-// Loads from multiple JSON sources, supports pagination, search, and sort.
+// Loads from multiple JSON sources, supports pagination, per-column search, and sort.
 
 const JSON_FILES = [
   "assets/data/personsvol1.json",
@@ -14,11 +14,28 @@ const JSON_FILES = [
 
 const PAGE_SIZE = 25;
 
+const SEARCH_COLUMNS = [
+  { label: "All columns",       key: null },
+  { label: "Name (as appears)", key: "person_entry" },
+  { label: "Standardised Name", key: "standardised_name" },
+  { label: "Title",             key: "title" },
+  { label: "Role / Profession", key: "role" },
+  { label: "Organisation",      key: "associated_organisation" },
+  { label: "Gender",            key: "gender" },
+  { label: "Relation to text",  key: "relation" },
+  { label: "Depicted",          key: "depicted" },
+  { label: "Article",           key: "article_title" },
+  { label: "Page",              key: "page_number" },
+  { label: "File",              key: "filename" },
+  { label: "Context Extract",   key: "brief_extract" },
+];
+
 let allData = [];
 let filteredData = [];
 let currentPage = 1;
 let currentSort = { index: -1, asc: true };
 let currentSearch = "";
+let currentSearchKey = null;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -31,6 +48,28 @@ function loadFile(url) {
     .then(r => r.text())
     .then(t => JSON.parse(cleanJSON(t)))
     .catch(() => []);
+}
+
+function matchesSearch(person) {
+  if (!currentSearch) return true;
+  const q = currentSearch.toLowerCase();
+  if (currentSearchKey) {
+    return String(person[currentSearchKey] || "").toLowerCase().includes(q);
+  }
+  return (
+    (person.person_entry           || "").toLowerCase().includes(q) ||
+    (person.standardised_name      || "").toLowerCase().includes(q) ||
+    (person.title                  || "").toLowerCase().includes(q) ||
+    (person.role                   || "").toLowerCase().includes(q) ||
+    (person.associated_organisation|| "").toLowerCase().includes(q) ||
+    (person.gender                 || "").toLowerCase().includes(q) ||
+    (person.relation               || "").toLowerCase().includes(q) ||
+    (person.depicted               || "").toLowerCase().includes(q) ||
+    (person.article_title          || "").toLowerCase().includes(q) ||
+    String(person.page_number      || "").toLowerCase().includes(q) ||
+    (person.filename               || "").toLowerCase().includes(q) ||
+    (person.brief_extract          || "").toLowerCase().includes(q)
+  );
 }
 
 // ── Rendering ─────────────────────────────────────────────────────────────────
@@ -73,7 +112,6 @@ function renderTable() {
 function renderPagination() {
   const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
   const container = document.getElementById("pagination");
-
   let html = `<button onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? "disabled" : ""}>‹ Prev</button>`;
   html += `<span style="margin:0 1rem;">Page ${currentPage} of ${totalPages}</span>`;
   html += `<button onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? "disabled" : ""}>Next ›</button>`;
@@ -90,40 +128,13 @@ function renderStats() {
 // ── Filtering & sorting ───────────────────────────────────────────────────────
 
 function applyFiltersAndSort() {
-  let result = allData.slice();
-
-  if (currentSearch) {
-    const q = currentSearch.toLowerCase();
-    result = result.filter(person =>
-      (person.person_entry || "").toLowerCase().includes(q) ||
-      (person.standardised_name || "").toLowerCase().includes(q) ||
-      (person.title || "").toLowerCase().includes(q) ||
-      (person.role || "").toLowerCase().includes(q) ||
-      (person.associated_organisation || "").toLowerCase().includes(q) ||
-      (person.gender || "").toLowerCase().includes(q) ||
-      (person.relation || "").toLowerCase().includes(q) ||
-      (person.depicted || "").toLowerCase().includes(q) ||
-      (person.article_title || "").toLowerCase().includes(q) ||
-      (String(person.page_number || "")).toLowerCase().includes(q) ||
-      (person.filename || "").toLowerCase().includes(q) ||
-      (person.brief_extract || "").toLowerCase().includes(q)
-    );
-  }
+  let result = allData.filter(matchesSearch);
 
   if (currentSort.index >= 0) {
     const keys = [
-      "person_entry",
-      "standardised_name",
-      "title",
-      "role",
-      "associated_organisation",
-      "gender",
-      "relation",
-      "depicted",
-      "article_title",
-      "page_number",
-      "filename",
-      "brief_extract"
+      "person_entry", "standardised_name", "title", "role",
+      "associated_organisation", "gender", "relation", "depicted",
+      "article_title", "page_number", "filename", "brief_extract"
     ];
     const key = keys[currentSort.index];
     result.sort((a, b) => {
@@ -154,9 +165,25 @@ Promise.all(JSON_FILES.map(loadFile))
   .then(arrays => {
     allData = arrays.flat();
     filteredData = allData.slice();
+
+    // Build column selector dropdown
+    const select = document.getElementById("columnSelect");
+    SEARCH_COLUMNS.forEach(col => {
+      const opt = document.createElement("option");
+      opt.value = col.key || "";
+      opt.textContent = col.label;
+      select.appendChild(opt);
+    });
+
     renderTable();
 
-    // Search
+    // Column selector
+    select.addEventListener("change", () => {
+      currentSearchKey = select.value || null;
+      applyFiltersAndSort();
+    });
+
+    // Search box
     document.getElementById("searchBox").addEventListener("input", e => {
       currentSearch = e.target.value.trim();
       applyFiltersAndSort();
@@ -167,7 +194,6 @@ Promise.all(JSON_FILES.map(loadFile))
       th.addEventListener("click", () => {
         const isAsc = currentSort.index === index ? !currentSort.asc : true;
         currentSort = { index, asc: isAsc };
-
         document.querySelectorAll("#peopleTable th").forEach(h => h.classList.remove("sort-asc", "sort-desc"));
         th.classList.add(isAsc ? "sort-asc" : "sort-desc");
         applyFiltersAndSort();
