@@ -55,6 +55,7 @@
             font-size: 1rem;
             border: 1px solid #ccc;
             border-radius: 4px;
+            box-sizing: border-box;
         }
 
         details {
@@ -78,6 +79,41 @@
             font-size: 0.85rem;
             line-height: 1.4;
         }
+
+        #stats {
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            background: #f5f5f5;
+            border-left: 4px solid #2c2c2c;
+            font-size: 0.9rem;
+        }
+
+        #pagination {
+            margin-top: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        #pagination button {
+            padding: 0.4rem 0.9rem;
+            border: 1px solid #ccc;
+            background: white;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        #pagination button:hover:not(:disabled) {
+            background: #f5f5f5;
+        }
+
+        #pagination button:disabled {
+            color: #aaa;
+            cursor: default;
+        }
     </style>
 </head>
 <body>
@@ -100,6 +136,8 @@
         Locations are standardized using Getty TGN conventions and linked to their
         source articles. Click column headers to sort.
     </p>
+
+    <div id="stats">Loading…</div>
 
     <input
         type="text"
@@ -125,6 +163,8 @@
             </tbody>
         </table>
     </div>
+
+    <div id="pagination"></div>
 </main>
 
 <footer>
