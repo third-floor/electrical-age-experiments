@@ -1,102 +1,176 @@
-fetch("assets/data/articles.json")
-  .then(response => response.text())  // Get as text first
-  .then(text => {
-    // Replace NaN with null to make valid JSON
-    const cleanedText = text.replace(/:\s*NaN\s*([,\}])/g, ': null$1');
-    return JSON.parse(cleanedText);
-  })
-  .then(data => {
-    const tbody = document.querySelector("#articlesTable tbody");
+// articles.js
+// Loads from multiple JSON sources, supports pagination, search, filter, and sort.
 
-    data.forEach(article => {
+const JSON_FILES = [
+  "assets/data/articlesvol1.json",
+  "assets/data/articlesvol2.json",
+  "assets/data/articles1941v1.json",
+  "assets/data/articles1943v1.json",
+  "assets/data/articles1947v1.json",
+  "assets/data/articles1960v1.json",
+  "assets/data/articles1979v1.json",
+  "assets/data/articles1982v1.json",
+];
+
+const PAGE_SIZE = 25;
+
+let allData = [];         // full combined dataset
+let filteredData = [];    // after search + type filter
+let currentPage = 1;
+let currentSort = { index: -1, asc: true };
+let currentFilter = "all";
+let currentSearch = "";
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function cleanJSON(text) {
+  return text.replace(/:\s*NaN\s*([,\}])/g, ': null$1');
+}
+
+function loadFile(url) {
+  return fetch(url)
+    .then(r => r.text())
+    .then(t => JSON.parse(cleanJSON(t)))
+    .catch(() => []);   // silently skip missing files
+}
+
+// ── Rendering ─────────────────────────────────────────────────────────────────
+
+function renderTable() {
+  const tbody = document.querySelector("#articlesTable tbody");
+  tbody.innerHTML = "";
+
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const pageData = filteredData.slice(start, start + PAGE_SIZE);
+
+  if (pageData.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:#999;">No results found.</td></tr>';
+  } else {
+    pageData.forEach(article => {
       const tr = document.createElement("tr");
-
-      // Add class based on article type for styling
       tr.className = article.article_type === "advertisement" ? "ad-row" : "article-row";
-
       tr.innerHTML = `
         <td>${article.article_title || ""}</td>
         <td><span class="badge badge-${article.article_type}">${article.article_type || ""}</span></td>
         <td>${article.page_number || ""}</td>
         <td>${article.filename || ""}</td>
       `;
-
       tbody.appendChild(tr);
     });
+  }
 
-    // Search filter
-    document.getElementById("searchBox").addEventListener("keyup", e => {
-      const q = e.target.value.toLowerCase();
-      document.querySelectorAll("#articlesTable tbody tr").forEach(tr => {
-        tr.style.display = tr.textContent.toLowerCase().includes(q) ? "" : "none";
-      });
+  renderPagination();
+  renderStats();
+}
+
+function renderPagination() {
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
+  const container = document.getElementById("pagination");
+
+  let html = `<button onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? "disabled" : ""}>‹ Prev</button>`;
+  html += `<span style="margin:0 1rem;">Page ${currentPage} of ${totalPages}</span>`;
+  html += `<button onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? "disabled" : ""}>Next ›</button>`;
+  container.innerHTML = html;
+}
+
+function renderStats() {
+  const totalArticles = allData.filter(a => a.article_type === "article").length;
+  const totalAds = allData.filter(a => a.article_type === "advertisement").length;
+  document.getElementById("stats").innerHTML = `
+    <strong>Total loaded:</strong> ${allData.length} entries |
+    <strong>Articles:</strong> ${totalArticles} |
+    <strong>Advertisements:</strong> ${totalAds} |
+    <strong>Showing:</strong> ${filteredData.length} matching entries
+  `;
+}
+
+// ── Filtering & sorting ───────────────────────────────────────────────────────
+
+function applyFiltersAndSort() {
+  let result = allData.slice();
+
+  // type filter
+  if (currentFilter === "articles") {
+    result = result.filter(a => a.article_type !== "advertisement");
+  } else if (currentFilter === "advertisements") {
+    result = result.filter(a => a.article_type === "advertisement");
+  }
+
+  // search
+  if (currentSearch) {
+    const q = currentSearch.toLowerCase();
+    result = result.filter(a =>
+      (a.article_title || "").toLowerCase().includes(q) ||
+      (a.article_type || "").toLowerCase().includes(q) ||
+      (String(a.page_number || "")).toLowerCase().includes(q) ||
+      (a.filename || "").toLowerCase().includes(q)
+    );
+  }
+
+  // sort
+  if (currentSort.index >= 0) {
+    const keys = ["article_title", "article_type", "page_number", "filename"];
+    const key = keys[currentSort.index];
+    result.sort((a, b) => {
+      const av = String(a[key] || "");
+      const bv = String(b[key] || "");
+      return currentSort.asc ? av.localeCompare(bv) : bv.localeCompare(av);
+    });
+  }
+
+  filteredData = result;
+  currentPage = 1;
+  renderTable();
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+
+function goToPage(page) {
+  const totalPages = Math.ceil(filteredData.length / PAGE_SIZE);
+  if (page < 1 || page > totalPages) return;
+  currentPage = page;
+  renderTable();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+
+Promise.all(JSON_FILES.map(loadFile))
+  .then(arrays => {
+    allData = arrays.flat();
+    filteredData = allData.slice();
+    renderTable();
+
+    // Search
+    document.getElementById("searchBox").addEventListener("input", e => {
+      currentSearch = e.target.value.trim();
+      applyFiltersAndSort();
     });
 
-    // Filter by type
+    // Type filter buttons
     document.querySelectorAll(".filter-btn").forEach(btn => {
       btn.addEventListener("click", () => {
-        const filter = btn.dataset.filter;
-        
-        // Update active button
         document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
         btn.classList.add("active");
-        
-        // Filter rows
-        document.querySelectorAll("#articlesTable tbody tr").forEach(tr => {
-          if (filter === "all") {
-            tr.style.display = "";
-          } else if (filter === "articles") {
-            tr.style.display = tr.classList.contains("article-row") ? "" : "none";
-          } else if (filter === "advertisements") {
-            tr.style.display = tr.classList.contains("ad-row") ? "" : "none";
-          }
-        });
+        currentFilter = btn.dataset.filter;
+        applyFiltersAndSort();
       });
     });
 
-    // Add sorting functionality
+    // Column sort
     document.querySelectorAll("#articlesTable th").forEach((th, index) => {
       th.addEventListener("click", () => {
-        const table = document.getElementById("articlesTable");
-        const rows = Array.from(tbody.querySelectorAll("tr"));
-        const isAscending = th.classList.contains("sort-asc");
-        
-        // Clear all sort classes
-        document.querySelectorAll("#articlesTable th").forEach(header => {
-          header.classList.remove("sort-asc", "sort-desc");
-        });
-        
-        // Sort rows
-        rows.sort((a, b) => {
-          const aText = a.cells[index].textContent.trim();
-          const bText = b.cells[index].textContent.trim();
-          
-          if (isAscending) {
-            return bText.localeCompare(aText);
-          } else {
-            return aText.localeCompare(bText);
-          }
-        });
-        
-        // Apply sort class
-        th.classList.add(isAscending ? "sort-desc" : "sort-asc");
-        
-        // Re-append sorted rows
-        rows.forEach(row => tbody.appendChild(row));
+        const isAsc = currentSort.index === index ? !currentSort.asc : true;
+        currentSort = { index, asc: isAsc };
+
+        document.querySelectorAll("#articlesTable th").forEach(h => h.classList.remove("sort-asc", "sort-desc"));
+        th.classList.add(isAsc ? "sort-asc" : "sort-desc");
+        applyFiltersAndSort();
       });
     });
-
-    // Display stats
-    const totalArticles = data.filter(a => a.article_type === "article").length;
-    const totalAds = data.filter(a => a.article_type === "advertisement").length;
-    document.getElementById("stats").innerHTML = `
-      <strong>Total:</strong> ${data.length} entries | 
-      <strong>Articles:</strong> ${totalArticles} | 
-      <strong>Advertisements:</strong> ${totalAds}
-    `;
   })
   .catch(err => {
-    console.error("Failed to load articles.json", err);
-    document.querySelector("#articlesTable tbody").innerHTML = 
-      '<tr><td colspan="4" style="text-align: center; padding: 2rem; color: #999;">Failed to load articles data. Please check the console for details.</td></tr>';
+    console.error("Failed to load article data", err);
+    document.querySelector("#articlesTable tbody").innerHTML =
+      '<tr><td colspan="4" style="text-align:center;padding:2rem;color:#999;">Failed to load data. Please check the console.</td></tr>';
   });
