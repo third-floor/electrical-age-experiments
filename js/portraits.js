@@ -78,8 +78,8 @@ const GALLERY_PAGES = [
     ],
   },
   {
-    filename: "Electric Living (Summer 1979)_0047.jpg",
-    src: "assets/images/portraits/Electric Living (Summer 1979)_0047.jpg",
+    filename: "Electric_Living_(Summer_1979)_0047.jpg",
+    src: "assets/images/portraits/Electric_Living_(Summer_1979)_0047.jpg",
     caption: "Mrs. Kibble, Assistant Test Manager for Thorn Ericsson, installed three main frame 64K computers in international G.P.O. telephone exchanges with up to 20,000 lines",
     volume: "Electric Living, Summer 1979, p. 9",
     persons: [
@@ -87,8 +87,8 @@ const GALLERY_PAGES = [
     ],
   },
   {
-    filename: "The Electrical Age - Number 4 (January 1960)_0096.jpg",
-    src: "assets/images/portraits/The Electrical Age - Number 4 (January 1960)_0096.jpg",
+    filename: "The_Electrical_Age_-_Number_4_(January_1960)_0096.jpg",
+    src: "assets/images/portraits/The_Electrical_Age_-_Number_4_(January_1960)_0096.jpg",
     caption: "Portraits: Mrs. D. Barkwith · Miss M. Powell · Miss F. M. Pugh, M.A., C.A. · Mrs. A. Maxwell · Miss R. Brown · Mrs. Mark Fraser, M.B.E.",
     volume: "The Electrical Age, No. 4 (January 1960), p. 9",
     persons: [
