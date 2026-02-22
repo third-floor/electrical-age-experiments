@@ -26,50 +26,48 @@
             user-select: none;
         }
 
-        th:hover {
-            background: #ddd;
-        }
+        th:hover { background: #ddd; }
 
-        th.sort-asc::after {
-            content: " ▲";
-            font-size: 0.7rem;
-        }
+        th.sort-asc::after  { content: " ▲"; font-size: 0.7rem; }
+        th.sort-desc::after { content: " ▼"; font-size: 0.7rem; }
 
-        th.sort-desc::after {
-            content: " ▼";
-            font-size: 0.7rem;
-        }
+        tr:nth-child(even) { background: #f9f9f9; }
+        tr:hover           { background: #e8f4f8; }
 
-        tr:nth-child(even) {
-            background: #f9f9f9;
-        }
-
-        tr:hover {
-            background: #e8f4f8;
-        }
-
-        input {
+        .search-bar {
+            display: flex;
+            gap: 0.5rem;
             margin-bottom: 1rem;
+            align-items: center;
+        }
+
+        .search-bar select {
+            padding: 0.5rem;
+            font-size: 0.9rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background: white;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .search-bar input {
             padding: 0.5rem;
             width: 100%;
             font-size: 1rem;
             border: 1px solid #ccc;
             border-radius: 4px;
-            box-sizing: border-box;
+            margin: 0;
         }
 
-        details {
-            cursor: pointer;
-        }
+        details { cursor: pointer; }
 
         details summary {
             font-style: italic;
             color: #0066cc;
         }
 
-        details summary:hover {
-            text-decoration: underline;
-        }
+        details summary:hover { text-decoration: underline; }
 
         details p {
             margin: 0.5rem 0;
@@ -106,14 +104,8 @@
             font-size: 0.9rem;
         }
 
-        #pagination button:hover:not(:disabled) {
-            background: #f5f5f5;
-        }
-
-        #pagination button:disabled {
-            color: #aaa;
-            cursor: default;
-        }
+        #pagination button:hover:not(:disabled) { background: #f5f5f5; }
+        #pagination button:disabled { color: #aaa; cursor: default; }
     </style>
 </head>
 <body>
@@ -139,11 +131,10 @@
 
     <div id="stats">Loading…</div>
 
-    <input
-        type="text"
-        id="searchBox"
-        placeholder="Search names, roles, organisations, articles…"
-    >
+    <div class="search-bar">
+        <select id="columnSelect" title="Choose which column to search"></select>
+        <input type="text" id="searchBox" placeholder="Search…">
+    </div>
 
     <div style="overflow-x:auto;">
         <table id="peopleTable">
@@ -163,9 +154,7 @@
                     <th>Context Extract</th>
                 </tr>
             </thead>
-            <tbody>
-                <!-- rows injected by JS -->
-            </tbody>
+            <tbody></tbody>
         </table>
     </div>
 
