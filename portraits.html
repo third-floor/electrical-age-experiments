@@ -4,6 +4,220 @@
     <meta charset="UTF-8">
     <title>Our Portrait Page</title>
     <link rel="stylesheet" href="css/style.css">
+
+    <style>
+
+        /* ── Gallery ─────────────────────────────────────────────────────── */
+
+        #galleryContainer {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .portrait-figure {
+            margin: 0;
+            border: 3px solid transparent;
+            border-radius: 6px;
+            background: white;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+            transition: border-color 0.3s ease, box-shadow 0.3s ease, opacity 0.3s ease;
+            overflow: hidden;
+        }
+
+        .portrait-figure a {
+            display: block;
+        }
+
+        .portrait-figure img {
+            width: 100%;
+            display: block;
+            border-bottom: 1px solid #eee;
+        }
+
+        .portrait-figure figcaption {
+            padding: 0.6rem 0.75rem 0.75rem;
+            font-size: 0.82rem;
+            line-height: 1.45;
+            color: #333;
+        }
+
+        .portrait-figure figcaption strong {
+            display: block;
+            margin-bottom: 0.2rem;
+            color: #555;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .filename-label {
+            margin-top: 0.4rem;
+            font-size: 0.72rem;
+            color: #999;
+            font-family: monospace;
+        }
+
+        .person-tags {
+            margin-top: 0.5rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.3rem;
+        }
+
+        .person-tag {
+            display: inline-block;
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 0.15rem 0.5rem;
+            font-size: 0.72rem;
+            color: #444;
+        }
+
+        /* Highlighted: glowing border */
+        .portrait-figure.highlighted {
+            border-color: #b8860b;
+            box-shadow: 0 0 0 4px rgba(184,134,11,0.25), 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .portrait-figure.highlighted .person-tag {
+            background: #fff8dc;
+            border-color: #b8860b;
+        }
+
+        /* Dimmed: fade non-matching images when a search is active */
+        .portrait-figure.dimmed {
+            opacity: 0.35;
+        }
+
+        /* ── Section divider ─────────────────────────────────────────────── */
+
+        .section-heading {
+            margin: 2.5rem 0 1rem;
+            padding-bottom: 0.4rem;
+            border-bottom: 2px solid #2c2c2c;
+            font-size: 1.25rem;
+        }
+
+        /* ── Search bar ──────────────────────────────────────────────────── */
+
+        .search-bar {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            align-items: center;
+        }
+
+        .search-bar select {
+            padding: 0.5rem;
+            font-size: 0.9rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background: white;
+            flex-shrink: 0;
+        }
+
+        .search-bar input {
+            padding: 0.5rem;
+            width: 100%;
+            font-size: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        /* ── Stats bar ───────────────────────────────────────────────────── */
+
+        #stats {
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            background: #f5f5f5;
+            border-left: 4px solid #2c2c2c;
+            font-size: 0.9rem;
+        }
+
+        /* ── Table ───────────────────────────────────────────────────────── */
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            border: 1px solid #ccc;
+            padding: 0.4rem;
+            vertical-align: top;
+        }
+
+        th {
+            background: #eee;
+            position: sticky;
+            top: 0;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        th:hover { background: #ddd; }
+
+        th.sort-asc::after  { content: " ▲"; font-size: 0.7rem; }
+        th.sort-desc::after { content: " ▼"; font-size: 0.7rem; }
+
+        tr:nth-child(even) { background: #f9f9f9; }
+        tr:hover           { background: #e8f4f8; }
+
+        details { cursor: pointer; }
+
+        details summary {
+            font-style: italic;
+            color: #0066cc;
+        }
+
+        details summary:hover { text-decoration: underline; }
+
+        details p {
+            margin: 0.5rem 0;
+            padding: 0.5rem;
+            background: #f5f5f5;
+            border-left: 3px solid #0066cc;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+
+        /* ── Pagination ──────────────────────────────────────────────────── */
+
+        #pagination {
+            margin-top: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        #pagination button {
+            padding: 0.4rem 0.9rem;
+            border: 1px solid #ccc;
+            background: white;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        #pagination button:hover:not(:disabled) { background: #f5f5f5; }
+        #pagination button:disabled { color: #aaa; cursor: default; }
+
+        /* ── Search hint ─────────────────────────────────────────────────── */
+
+        .search-hint {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 1.25rem;
+            font-style: italic;
+        }
+
+    </style>
 </head>
 <body>
 
@@ -14,27 +228,68 @@
         <a href="portraits.html">Our Portrait Page</a>
         <a href="experiments.html">Experiments</a>
         <a href="people.html">Individuals</a>
+        <a href="locations.html">Locations</a>
+        <a href="articles.html">Articles</a>
     </nav>
 </header>
 
 <main>
+
     <p>
-        This page will feature portraits of individuals identified within
-        the journal, reconnecting names with visual histories.
+        This page brings together portrait pages and images of individuals identified
+        within the journals, reconnecting names with visual histories. Search for a name
+        below to find matching entries in the table and highlight the relevant pages in
+        the gallery above.
     </p>
 
-    <div class="gallery">
-        <figure>
-            <img src="assets/placeholder.png" alt="Placeholder portrait">
-            <figcaption>Portrait placeholder – metadata to be added</figcaption>
-        </figure>
+    <!-- ── Search bar (shared by gallery highlights + table filter) ── -->
+    <div class="search-bar">
+        <select id="columnSelect" title="Choose which column to search"></select>
+        <input type="text" id="searchBox" placeholder="Search depicted individuals…">
     </div>
+    <p class="search-hint">
+        Searching by name will highlight matching portrait pages in the gallery and filter the table below.
+    </p>
+
+    <!-- ── Gallery ────────────────────────────────────────────────────── -->
+    <h2 class="section-heading">Portrait Pages</h2>
+    <div id="galleryContainer">
+        <p style="color:#999;">Loading gallery…</p>
+    </div>
+
+    <!-- ── Depicted persons table ─────────────────────────────────────── -->
+    <h2 class="section-heading">All Depicted Individuals</h2>
+
+    <div id="stats">Loading…</div>
+
+    <div style="overflow-x:auto;">
+        <table id="depictedTable">
+            <thead>
+                <tr>
+                    <th>Name (as appears)</th>
+                    <th>Standardised Name</th>
+                    <th>Title</th>
+                    <th>Role / Profession</th>
+                    <th>Organisation</th>
+                    <th>Article</th>
+                    <th>Page</th>
+                    <th>File</th>
+                    <th>Context Extract</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <div id="pagination"></div>
+
 </main>
 
 <footer>
     © LLM Research Diary
 </footer>
 
+<script src="js/portraits.js"></script>
+
 </body>
 </html>
-
