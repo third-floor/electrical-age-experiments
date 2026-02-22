@@ -1,19 +1,53 @@
-fetch("assets/data/persons.json")
-  .then(response => response.text())  // Get as text first
-  .then(text => {
-    // Replace NaN with null to make valid JSON
-    const cleanedText = text.replace(/:\s*NaN\s*([,\}])/g, ': null$1');
-    return JSON.parse(cleanedText);
-  })
-  .then(data => {
-    const tbody = document.querySelector("#peopleTable tbody");
+// people.js
+// Loads from multiple JSON sources, supports pagination, search, and sort.
 
-    data.forEach(person => {
+const JSON_FILES = [
+  "assets/data/personsvol1.json",
+  "assets/data/personsvol2.json",
+  "assets/data/persons1941v1.json",
+  "assets/data/persons1943v1.json",
+  "assets/data/persons1947v1.json",
+  "assets/data/persons1960v1.json",
+  "assets/data/persons1979v1.json",
+  "assets/data/persons1982v1.json",
+];
+
+const PAGE_SIZE = 25;
+
+let allData = [];
+let filteredData = [];
+let currentPage = 1;
+let currentSort = { index: -1, asc: true };
+let currentSearch = "";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function cleanJSON(text) {
+  return text.replace(/:\s*NaN\s*([,\}])/g, ': null$1');
+}
+
+function loadFile(url) {
+  return fetch(url)
+    .then(r => r.text())
+    .then(t => JSON.parse(cleanJSON(t)))
+    .catch(() => []);
+}
+
+// ── Rendering ─────────────────────────────────────────────────────────────────
+
+function renderTable() {
+  const tbody = document.querySelector("#peopleTable tbody");
+  tbody.innerHTML = "";
+
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const pageData = filteredData.slice(start, start + PAGE_SIZE);
+
+  if (pageData.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:2rem;color:#999;">No results found.</td></tr>';
+  } else {
+    pageData.forEach(person => {
       const tr = document.createElement("tr");
-
-      // optional anchor for deep-linking
       if (person.id) tr.id = person.id;
-
       tr.innerHTML = `
         <td>${person.person_entry || ""}</td>
         <td>${person.standardised_name || ""}</td>
@@ -26,54 +60,122 @@ fetch("assets/data/persons.json")
         <td>${person.article_title || ""}</td>
         <td>${person.page_number || ""}</td>
         <td>${person.filename || ""}</td>
-        <td><details><summary>View extract</summary><p style="margin: 0.5rem 0; max-width: 400px; line-height: 1.4;">${person.brief_extract || ""}</p></details></td>
+        <td><details><summary>View extract</summary><p style="margin:0.5rem 0;max-width:400px;line-height:1.4;">${person.brief_extract || ""}</p></details></td>
       `;
-
       tbody.appendChild(tr);
     });
+  }
 
-    // Search filter
-    document.getElementById("searchBox").addEventListener("keyup", e => {
-      const q = e.target.value.toLowerCase();
-      document.querySelectorAll("#peopleTable tbody tr").forEach(tr => {
-        tr.style.display = tr.textContent.toLowerCase().includes(q) ? "" : "none";
-      });
+  renderPagination();
+  renderStats();
+}
+
+function renderPagination() {
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
+  const container = document.getElementById("pagination");
+
+  let html = `<button onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? "disabled" : ""}>‹ Prev</button>`;
+  html += `<span style="margin:0 1rem;">Page ${currentPage} of ${totalPages}</span>`;
+  html += `<button onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? "disabled" : ""}>Next ›</button>`;
+  container.innerHTML = html;
+}
+
+function renderStats() {
+  document.getElementById("stats").innerHTML = `
+    <strong>Total loaded:</strong> ${allData.length} entries |
+    <strong>Showing:</strong> ${filteredData.length} matching entries
+  `;
+}
+
+// ── Filtering & sorting ───────────────────────────────────────────────────────
+
+function applyFiltersAndSort() {
+  let result = allData.slice();
+
+  if (currentSearch) {
+    const q = currentSearch.toLowerCase();
+    result = result.filter(person =>
+      (person.person_entry || "").toLowerCase().includes(q) ||
+      (person.standardised_name || "").toLowerCase().includes(q) ||
+      (person.title || "").toLowerCase().includes(q) ||
+      (person.role || "").toLowerCase().includes(q) ||
+      (person.associated_organisation || "").toLowerCase().includes(q) ||
+      (person.gender || "").toLowerCase().includes(q) ||
+      (person.relation || "").toLowerCase().includes(q) ||
+      (person.depicted || "").toLowerCase().includes(q) ||
+      (person.article_title || "").toLowerCase().includes(q) ||
+      (String(person.page_number || "")).toLowerCase().includes(q) ||
+      (person.filename || "").toLowerCase().includes(q) ||
+      (person.brief_extract || "").toLowerCase().includes(q)
+    );
+  }
+
+  if (currentSort.index >= 0) {
+    const keys = [
+      "person_entry",
+      "standardised_name",
+      "title",
+      "role",
+      "associated_organisation",
+      "gender",
+      "relation",
+      "depicted",
+      "article_title",
+      "page_number",
+      "filename",
+      "brief_extract"
+    ];
+    const key = keys[currentSort.index];
+    result.sort((a, b) => {
+      const av = String(a[key] || "");
+      const bv = String(b[key] || "");
+      return currentSort.asc ? av.localeCompare(bv) : bv.localeCompare(av);
+    });
+  }
+
+  filteredData = result;
+  currentPage = 1;
+  renderTable();
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+
+function goToPage(page) {
+  const totalPages = Math.ceil(filteredData.length / PAGE_SIZE);
+  if (page < 1 || page > totalPages) return;
+  currentPage = page;
+  renderTable();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+
+Promise.all(JSON_FILES.map(loadFile))
+  .then(arrays => {
+    allData = arrays.flat();
+    filteredData = allData.slice();
+    renderTable();
+
+    // Search
+    document.getElementById("searchBox").addEventListener("input", e => {
+      currentSearch = e.target.value.trim();
+      applyFiltersAndSort();
     });
 
-    // Add sorting functionality
+    // Column sort
     document.querySelectorAll("#peopleTable th").forEach((th, index) => {
       th.addEventListener("click", () => {
-        const table = document.getElementById("peopleTable");
-        const rows = Array.from(tbody.querySelectorAll("tr"));
-        const isAscending = th.classList.contains("sort-asc");
-        
-        // Clear all sort classes
-        document.querySelectorAll("#peopleTable th").forEach(header => {
-          header.classList.remove("sort-asc", "sort-desc");
-        });
-        
-        // Sort rows
-        rows.sort((a, b) => {
-          const aText = a.cells[index].textContent.trim();
-          const bText = b.cells[index].textContent.trim();
-          
-          if (isAscending) {
-            return bText.localeCompare(aText);
-          } else {
-            return aText.localeCompare(bText);
-          }
-        });
-        
-        // Apply sort class
-        th.classList.add(isAscending ? "sort-desc" : "sort-asc");
-        
-        // Re-append sorted rows
-        rows.forEach(row => tbody.appendChild(row));
+        const isAsc = currentSort.index === index ? !currentSort.asc : true;
+        currentSort = { index, asc: isAsc };
+
+        document.querySelectorAll("#peopleTable th").forEach(h => h.classList.remove("sort-asc", "sort-desc"));
+        th.classList.add(isAsc ? "sort-asc" : "sort-desc");
+        applyFiltersAndSort();
       });
     });
   })
   .catch(err => {
-    console.error("Failed to load persons.json", err);
-    document.querySelector("#peopleTable tbody").innerHTML = 
-      '<tr><td colspan="12" style="text-align: center; padding: 2rem; color: #999;">Failed to load persons data. Please check the console for details.</td></tr>';
+    console.error("Failed to load persons data", err);
+    document.querySelector("#peopleTable tbody").innerHTML =
+      '<tr><td colspan="12" style="text-align:center;padding:2rem;color:#999;">Failed to load data. Please check the console.</td></tr>';
   });
