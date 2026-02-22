@@ -1,5 +1,5 @@
 // articles.js
-// Loads from multiple JSON sources, supports pagination, search, filter, and sort.
+// Loads from multiple JSON sources, supports pagination, per-column search, filter, and sort.
 
 const JSON_FILES = [
   "assets/data/articlesvol1.json",
@@ -14,14 +14,23 @@ const JSON_FILES = [
 
 const PAGE_SIZE = 25;
 
-let allData = [];         // full combined dataset
-let filteredData = [];    // after search + type filter
+const SEARCH_COLUMNS = [
+  { label: "All columns",   key: null },
+  { label: "Article Title", key: "article_title" },
+  { label: "Type",          key: "article_type" },
+  { label: "Page",          key: "page_number" },
+  { label: "File",          key: "filename" },
+];
+
+let allData = [];
+let filteredData = [];
 let currentPage = 1;
 let currentSort = { index: -1, asc: true };
 let currentFilter = "all";
 let currentSearch = "";
+let currentSearchKey = null;
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function cleanJSON(text) {
   return text.replace(/:\s*NaN\s*([,\}])/g, ': null$1');
@@ -31,7 +40,21 @@ function loadFile(url) {
   return fetch(url)
     .then(r => r.text())
     .then(t => JSON.parse(cleanJSON(t)))
-    .catch(() => []);   // silently skip missing files
+    .catch(() => []);
+}
+
+function matchesSearch(article) {
+  if (!currentSearch) return true;
+  const q = currentSearch.toLowerCase();
+  if (currentSearchKey) {
+    return String(article[currentSearchKey] || "").toLowerCase().includes(q);
+  }
+  return (
+    (article.article_title || "").toLowerCase().includes(q) ||
+    (article.article_type  || "").toLowerCase().includes(q) ||
+    String(article.page_number || "").toLowerCase().includes(q) ||
+    (article.filename      || "").toLowerCase().includes(q)
+  );
 }
 
 // ── Rendering ─────────────────────────────────────────────────────────────────
@@ -66,7 +89,6 @@ function renderTable() {
 function renderPagination() {
   const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
   const container = document.getElementById("pagination");
-
   let html = `<button onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? "disabled" : ""}>‹ Prev</button>`;
   html += `<span style="margin:0 1rem;">Page ${currentPage} of ${totalPages}</span>`;
   html += `<button onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? "disabled" : ""}>Next ›</button>`;
@@ -89,25 +111,14 @@ function renderStats() {
 function applyFiltersAndSort() {
   let result = allData.slice();
 
-  // type filter
   if (currentFilter === "articles") {
     result = result.filter(a => a.article_type !== "advertisement");
   } else if (currentFilter === "advertisements") {
     result = result.filter(a => a.article_type === "advertisement");
   }
 
-  // search
-  if (currentSearch) {
-    const q = currentSearch.toLowerCase();
-    result = result.filter(a =>
-      (a.article_title || "").toLowerCase().includes(q) ||
-      (a.article_type || "").toLowerCase().includes(q) ||
-      (String(a.page_number || "")).toLowerCase().includes(q) ||
-      (a.filename || "").toLowerCase().includes(q)
-    );
-  }
+  result = result.filter(matchesSearch);
 
-  // sort
   if (currentSort.index >= 0) {
     const keys = ["article_title", "article_type", "page_number", "filename"];
     const key = keys[currentSort.index];
@@ -139,9 +150,25 @@ Promise.all(JSON_FILES.map(loadFile))
   .then(arrays => {
     allData = arrays.flat();
     filteredData = allData.slice();
+
+    // Build column selector dropdown
+    const select = document.getElementById("columnSelect");
+    SEARCH_COLUMNS.forEach(col => {
+      const opt = document.createElement("option");
+      opt.value = col.key || "";
+      opt.textContent = col.label;
+      select.appendChild(opt);
+    });
+
     renderTable();
 
-    // Search
+    // Column selector
+    select.addEventListener("change", () => {
+      currentSearchKey = select.value || null;
+      applyFiltersAndSort();
+    });
+
+    // Search box
     document.getElementById("searchBox").addEventListener("input", e => {
       currentSearch = e.target.value.trim();
       applyFiltersAndSort();
@@ -162,7 +189,6 @@ Promise.all(JSON_FILES.map(loadFile))
       th.addEventListener("click", () => {
         const isAsc = currentSort.index === index ? !currentSort.asc : true;
         currentSort = { index, asc: isAsc };
-
         document.querySelectorAll("#articlesTable th").forEach(h => h.classList.remove("sort-asc", "sort-desc"));
         th.classList.add(isAsc ? "sort-asc" : "sort-desc");
         applyFiltersAndSort();
