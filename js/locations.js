@@ -25,16 +25,16 @@ const JSON_FILES = [
 const PAGE_SIZE = 25;
 
 const SEARCH_COLUMNS = [
-  { label: "All columns",          key: null },
+  { label: "All columns",           key: null },
   { label: "Location (as appears)", key: "location_entry" },
   { label: "Standardised Location", key: "location_standardised" },
-  { label: "Context",              key: "brief_context" },
-  { label: "Article",              key: "article_title" },
-  { label: "Page",                 key: "page_number" },
-  { label: "File",                 key: "filename" },
-  { label: "Volume/Issue",         key: "volume_issue" },
-  { label: "Date",                 key: "date" },
-  { label: "Text Extract",         key: "brief_extract" },
+  { label: "Context",               key: "brief_context" },
+  { label: "Article",               key: "article_title" },
+  { label: "Page",                  key: "page_number" },
+  { label: "File",                  key: "filename" },
+  { label: "Volume/Issue",          key: "volume_issue" },
+  { label: "Date",                  key: "date" },
+  { label: "Text Extract",          key: "brief_extract" },
 ];
 
 let allData = [];
@@ -70,8 +70,8 @@ function matchesSearch(loc) {
     (loc.article_title         || "").toLowerCase().includes(q) ||
     String(loc.page_number     || "").toLowerCase().includes(q) ||
     (loc.filename              || "").toLowerCase().includes(q) ||
-    (person.volume_issue       || "").toLowerCase().includes(q) ||
-    (person.date               || "").toLowerCase().includes(q) ||
+    (loc.volume_issue          || "").toLowerCase().includes(q) ||
+    (loc.date                  || "").toLowerCase().includes(q) ||
     (loc.brief_extract         || "").toLowerCase().includes(q)
   );
 }
@@ -86,7 +86,7 @@ function renderTable() {
   const pageData = filteredData.slice(start, start + PAGE_SIZE);
 
   if (pageData.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:#999;">No results found.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2rem;color:#999;">No results found.</td></tr>';
   } else {
     pageData.forEach(loc => {
       const tr = document.createElement("tr");
@@ -96,8 +96,8 @@ function renderTable() {
         <td>${loc.brief_context || ""}</td>
         <td>${loc.article_title || ""}</td>
         <td>${loc.page_number || ""}</td>
-        <td>${person.volume_issue || ""}</td>
-        <td>${person.date || ""}</td>
+        <td>${loc.volume_issue || ""}</td>
+        <td>${loc.date || ""}</td>
         <td>${loc.filename || ""}</td>
         <td><details><summary>View extract</summary><p style="margin:0.5rem 0;max-width:400px;line-height:1.4;">${loc.brief_extract || ""}</p></details></td>
       `;
@@ -165,7 +165,6 @@ Promise.all(JSON_FILES.map(loadFile))
     allData = arrays.flat();
     filteredData = allData.slice();
 
-    // Build column selector dropdown
     const select = document.getElementById("columnSelect");
     SEARCH_COLUMNS.forEach(col => {
       const opt = document.createElement("option");
@@ -176,19 +175,16 @@ Promise.all(JSON_FILES.map(loadFile))
 
     renderTable();
 
-    // Column selector
     select.addEventListener("change", () => {
       currentSearchKey = select.value || null;
       applyFiltersAndSort();
     });
 
-    // Search box
     document.getElementById("searchBox").addEventListener("input", e => {
       currentSearch = e.target.value.trim();
       applyFiltersAndSort();
     });
 
-    // Column sort
     document.querySelectorAll("#locationsTable th").forEach((th, index) => {
       th.addEventListener("click", () => {
         const isAsc = currentSort.index === index ? !currentSort.asc : true;
@@ -202,5 +198,5 @@ Promise.all(JSON_FILES.map(loadFile))
   .catch(err => {
     console.error("Failed to load location data", err);
     document.querySelector("#locationsTable tbody").innerHTML =
-      '<tr><td colspan="7" style="text-align:center;padding:2rem;color:#999;">Failed to load data. Please check the console.</td></tr>';
+      '<tr><td colspan="9" style="text-align:center;padding:2rem;color:#999;">Failed to load data. Please check the console.</td></tr>';
   });
