@@ -2,24 +2,24 @@
 // Loads from multiple JSON sources, supports pagination, per-column search, and sort.
 
 const JSON_FILES = [
-  "assets/data/locationsvol1.json",
-  "assets/data/locationsvol2.json",
-  "assets/data/locations1936v1.json",
-  "assets/data/locations1937v1.json",
-  "assets/data/locations1938v1.json",
-  "assets/data/locations1939v1.json",
-  "assets/data/locations1940v1.json",
-  "assets/data/locations1941v1.json",
-  "assets/data/locations1942v1.json",
-  "assets/data/locations1943v1.json",
-  "assets/data/locations1944v1.json",
-  "assets/data/locations1945v1.json",
-  "assets/data/locations1946v1.json",
-  "assets/data/locations1947v1.json",
-  "assets/data/locations1948v1.json",
-  "assets/data/locations1960v1.json",
-  "assets/data/locations1979v1.json",
-  "assets/data/locations1982v1.json",
+  "assets/data_date/locationsvol1.json",
+  "assets/data_date/locationsvol2.json",
+  "assets/data_date/locations1936v1.json",
+  "assets/data_date/locations1937v1.json",
+  "assets/data_date/locations1938v1.json",
+  "assets/data_date/locations1939v1.json",
+  "assets/data_date/locations1940v1.json",
+  "assets/data_date/locations1941v1.json",
+  "assets/data_date/locations1942v1.json",
+  "assets/data_date/locations1943v1.json",
+  "assets/data_date/locations1944v1.json",
+  "assets/data_date/locations1945v1.json",
+  "assets/data_date/locations1946v1.json",
+  "assets/data_date/locations1947v1.json",
+  "assets/data_date/locations1948v1.json",
+  "assets/data_date/locations1960v1.json",
+  "assets/data_date/locations1979v1.json",
+  "assets/data_date/locations1982v1.json",
 ];
 
 const PAGE_SIZE = 25;
@@ -32,6 +32,8 @@ const SEARCH_COLUMNS = [
   { label: "Article",              key: "article_title" },
   { label: "Page",                 key: "page_number" },
   { label: "File",                 key: "filename" },
+  { label: "Volume/Issue",         key: "volume_issue" },
+  { label: "Date",                 key: "date" },
   { label: "Text Extract",         key: "brief_extract" },
 ];
 
@@ -68,6 +70,8 @@ function matchesSearch(loc) {
     (loc.article_title         || "").toLowerCase().includes(q) ||
     String(loc.page_number     || "").toLowerCase().includes(q) ||
     (loc.filename              || "").toLowerCase().includes(q) ||
+    (person.volume_issue       || "").toLowerCase().includes(q) ||
+    (person.date               || "").toLowerCase().includes(q) ||
     (loc.brief_extract         || "").toLowerCase().includes(q)
   );
 }
@@ -92,6 +96,8 @@ function renderTable() {
         <td>${loc.brief_context || ""}</td>
         <td>${loc.article_title || ""}</td>
         <td>${loc.page_number || ""}</td>
+        <td>${person.volume_issue || ""}</td>
+        <td>${person.date || ""}</td>
         <td>${loc.filename || ""}</td>
         <td><details><summary>View extract</summary><p style="margin:0.5rem 0;max-width:400px;line-height:1.4;">${loc.brief_extract || ""}</p></details></td>
       `;
@@ -127,7 +133,7 @@ function applyFiltersAndSort() {
   if (currentSort.index >= 0) {
     const keys = [
       "location_entry", "location_standardised", "brief_context",
-      "article_title", "page_number", "filename", "brief_extract"
+      "article_title", "page_number", "filename", "volume_issue", "date", "brief_extract"
     ];
     const key = keys[currentSort.index];
     result.sort((a, b) => {
