@@ -4,6 +4,8 @@
 const JSON_FILES = [
   "assets/data/articlesvol1.json",
   "assets/data/articlesvol2.json",
+  "assets/data/articles1936v1.json",
+  "assets/data/articles1937v1.json",
   "assets/data/articles1938v1.json",
   "assets/data/articles1939v1.json",
   "assets/data/articles1940v1.json",
