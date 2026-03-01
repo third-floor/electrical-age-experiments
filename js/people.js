@@ -2,24 +2,24 @@
 // Loads from multiple JSON sources, supports pagination, per-column search, and sort.
 
 const JSON_FILES = [
-  "assets/data/personsvol1.json",
-  "assets/data/personsvol2.json",
-  "assets/data/persons1936v1.json",
-  "assets/data/persons1937v1.json",
-  "assets/data/persons1938v1.json",
-  "assets/data/persons1939v1.json",
-  "assets/data/persons1940v1.json",
-  "assets/data/persons1941v1.json",
-  "assets/data/persons1942v1.json",
-  "assets/data/persons1943v1.json",
-  "assets/data/persons1944v1.json",
-  "assets/data/persons1945v1.json",
-  "assets/data/persons1946v1.json",
-  "assets/data/persons1947v1.json",
-  "assets/data/persons1948v1.json",
-  "assets/data/persons1960v1.json",
-  "assets/data/persons1979v1.json",
-  "assets/data/persons1982v1.json",
+  "assets/data_date/personsvol1.json",
+  "assets/data_date/personsvol2.json",
+  "assets/data_date/persons1936v1.json",
+  "assets/data_date/persons1937v1.json",
+  "assets/data_date/persons1938v1.json",
+  "assets/data_date/persons1939v1.json",
+  "assets/data_date/persons1940v1.json",
+  "assets/data_date/persons1941v1.json",
+  "assets/data_date/persons1942v1.json",
+  "assets/data_date/persons1943v1.json",
+  "assets/data_date/persons1944v1.json",
+  "assets/data_date/persons1945v1.json",
+  "assets/data_date/persons1946v1.json",
+  "assets/data_date/persons1947v1.json",
+  "assets/data_date/persons1948v1.json",
+  "assets/data_date/persons1960v1.json",
+  "assets/data_date/persons1979v1.json",
+  "assets/data_date/persons1982v1.json",
 ];
 
 const PAGE_SIZE = 25;
@@ -38,6 +38,8 @@ const SEARCH_COLUMNS = [
   { label: "Page",              key: "page_number" },
   { label: "File",              key: "filename" },
   { label: "Context Extract",   key: "brief_extract" },
+  { label: "Volume/Issue", key: "volume_issue" },
+  { label: "Date",         key: "date" },
 ];
 
 let allData = [];
@@ -78,7 +80,9 @@ function matchesSearch(person) {
     (person.article_title          || "").toLowerCase().includes(q) ||
     String(person.page_number      || "").toLowerCase().includes(q) ||
     (person.filename               || "").toLowerCase().includes(q) ||
-    (person.brief_extract          || "").toLowerCase().includes(q)
+    (person.brief_extract          || "").toLowerCase().includes(q) ||
+    (person.volume_issue           || "").toLowerCase().includes(q) ||
+    (person.date                   || "").toLowerCase().includes(q) ||
   );
 }
 
@@ -108,6 +112,8 @@ function renderTable() {
         <td>${person.depicted || ""}</td>
         <td>${person.article_title || ""}</td>
         <td>${person.page_number || ""}</td>
+        <td>${person.person.volume_issue || ""}</td>
+        <td>${person.person.date || ""}</td>
         <td>${person.filename || ""}</td>
         <td><details><summary>View extract</summary><p style="margin:0.5rem 0;max-width:400px;line-height:1.4;">${person.brief_extract || ""}</p></details></td>
       `;
@@ -144,7 +150,7 @@ function applyFiltersAndSort() {
     const keys = [
       "person_entry", "standardised_name", "title", "role",
       "associated_organisation", "gender", "relation", "depicted",
-      "article_title", "page_number", "filename", "brief_extract"
+      "article_title", "page_number", "filename", "volume_issue", "date", "brief_extract"
     ];
     const key = keys[currentSort.index];
     result.sort((a, b) => {
