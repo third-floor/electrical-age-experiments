@@ -2,24 +2,24 @@
 // Loads from multiple JSON sources, supports pagination, per-column search, filter, and sort.
 
 const JSON_FILES = [
-  "assets/data/articlesvol1.json",
-  "assets/data/articlesvol2.json",
-  "assets/data/articles1936v1.json",
-  "assets/data/articles1937v1.json",
-  "assets/data/articles1938v1.json",
-  "assets/data/articles1939v1.json",
-  "assets/data/articles1940v1.json",
-  "assets/data/articles1941v1.json",
-  "assets/data/articles1942v1.json",
-  "assets/data/articles1943v1.json",
-  "assets/data/articles1944v1.json",
-  "assets/data/articles1945v1.json",
-  "assets/data/articles1946v1.json",
-  "assets/data/articles1947v1.json",
-  "assets/data/articles1948v1.json",
-  "assets/data/articles1960v1.json",
-  "assets/data/articles1979v1.json",
-  "assets/data/articles1982v1.json",
+  "assets/data_date/articlesvol1.json",
+  "assets/data_date/articlesvol2.json",
+  "assets/data_date/articles1936v1.json",
+  "assets/data_date/articles1937v1.json",
+  "assets/data_date/articles1938v1.json",
+  "assets/data_date/articles1939v1.json",
+  "assets/data_date/articles1940v1.json",
+  "assets/data_date/articles1941v1.json",
+  "assets/data_date/articles1942v1.json",
+  "assets/data_date/articles1943v1.json",
+  "assets/data_date/articles1944v1.json",
+  "assets/data_date/articles1945v1.json",
+  "assets/data_date/articles1946v1.json",
+  "assets/data_date/articles1947v1.json",
+  "assets/data_date/articles1948v1.json",
+  "assets/data_date/articles1960v1.json",
+  "assets/data_date/articles1979v1.json",
+  "assets/data_date/articles1982v1.json",
 ];
 
 const PAGE_SIZE = 25;
@@ -30,6 +30,8 @@ const SEARCH_COLUMNS = [
   { label: "Type",          key: "article_type" },
   { label: "Page",          key: "page_number" },
   { label: "File",          key: "filename" },
+  { label: "Volume/Issue", key: "volume_issue" },
+  { label: "Date",         key: "date" },
 ];
 
 let allData = [];
@@ -63,7 +65,9 @@ function matchesSearch(article) {
     (article.article_title || "").toLowerCase().includes(q) ||
     (article.article_type  || "").toLowerCase().includes(q) ||
     String(article.page_number || "").toLowerCase().includes(q) ||
-    (article.filename      || "").toLowerCase().includes(q)
+    (article.filename      || "").toLowerCase().includes(q) ||
+    (person.volume_issue || "").toLowerCase().includes(q) ||
+    (person.date         || "").toLowerCase().includes(q) ||
   );
 }
 
@@ -87,6 +91,8 @@ function renderTable() {
         <td><span class="badge badge-${article.article_type}">${article.article_type || ""}</span></td>
         <td>${article.page_number || ""}</td>
         <td>${article.filename || ""}</td>
+        <td>${person.volume_issue || ""}</td>
+        <td>${person.date || ""}</td>
       `;
       tbody.appendChild(tr);
     });
@@ -130,7 +136,7 @@ function applyFiltersAndSort() {
   result = result.filter(matchesSearch);
 
   if (currentSort.index >= 0) {
-    const keys = ["article_title", "article_type", "page_number", "filename"];
+    const keys = ["article_title", "article_type", "page_number", "filename", "volume_issue", "date"];
     const key = keys[currentSort.index];
     result.sort((a, b) => {
       const av = String(a[key] || "");
