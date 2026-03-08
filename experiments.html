@@ -5,86 +5,138 @@
     <title>Experiments - Interactive Crossword</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        .crossword-wrapper {
+        /* Vintage Magazine Styling */
+        .crossword-container {
+            max-width: 1000px;
+            margin: 2rem auto;
+            background: #fdfaf3; /* Aged paper color */
+            padding: 40px;
+            border: 1px solid #d3c9b1;
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.05);
+            color: #2c2c2c;
+        }
+
+        .magazine-header {
+            text-align: center;
+            border-bottom: 3px double #2c2c2c;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+        }
+
+        .magazine-header h2 {
+            font-family: "Georgia", serif;
+            font-size: 2.5rem;
+            letter-spacing: 4px;
+            margin: 0;
+            text-transform: uppercase;
+        }
+
+        .puzzle-meta {
+            font-style: italic;
+            margin-top: 10px;
+            display: block;
+        }
+
+        .flex-layout {
             display: flex;
             flex-wrap: wrap;
-            gap: 30px;
-            margin-top: 2rem;
-            background: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            gap: 40px;
+            justify-content: center;
         }
+
+        /* The Grid Styling */
         .grid {
             display: grid;
-            grid-template-columns: repeat(13, 35px);
-            grid-template-rows: repeat(11, 35px);
-            gap: 1px;
+            grid-template-columns: repeat(13, 38px);
+            grid-template-rows: repeat(11, 38px);
             background-color: #000;
-            border: 2px solid #000;
+            border: 4px solid #000;
             height: fit-content;
         }
+
         .cell {
             background-color: #fff;
             position: relative;
-            width: 35px;
-            height: 35px;
+            width: 38px;
+            height: 38px;
+            box-sizing: border-box;
         }
+
         .cell.black { background-color: #2c2c2c; }
+
         .cell input {
             width: 100%;
             height: 100%;
             border: none;
             text-align: center;
             text-transform: uppercase;
-            font-size: 1.1rem;
-            font-family: Arial, sans-serif;
+            font-size: 1.3rem;
+            font-family: "Courier New", Courier, monospace;
             font-weight: bold;
             outline: none;
             background: transparent;
+            padding-top: 5px;
         }
-        .cell input:focus { background-color: #eef7ff; }
+
+        .cell input:focus { background-color: #fff9c4; }
+
         .cell .num {
             position: absolute;
-            top: 1px;
+            top: 2px;
             left: 2px;
-            font-size: 0.65rem;
-            color: #333;
+            font-size: 0.7rem;
+            color: #000;
+            font-family: Arial, sans-serif;
+            font-weight: normal;
             line-height: 1;
             pointer-events: none;
         }
+
+        /* Clues Section */
         .clues-section {
             flex: 1;
-            min-width: 300px;
+            min-width: 320px;
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            gap: 30px;
+            font-family: "Georgia", serif;
         }
+
         .clue-list h3 {
-            border-bottom: 2px solid #2c2c2c;
-            padding-bottom: 5px;
-            margin-top: 0;
-            font-size: 1.2rem;
+            border-bottom: 1px solid #2c2c2c;
+            font-variant: small-caps;
+            letter-spacing: 2px;
         }
+
         .clue-list ul {
             list-style: none;
             padding: 0;
-            margin: 0;
-            font-size: 0.85rem;
-            max-height: 500px;
-            overflow-y: auto;
+            font-size: 0.95rem;
+            line-height: 1.5;
         }
-        .clue-list li { margin-bottom: 6px; line-height: 1.3; }
-        .controls { margin-top: 20px; }
+
+        .clue-list li { margin-bottom: 8px; }
+
+        .controls {
+            text-align: center;
+            margin-top: 30px;
+            border-top: 1px solid #d3c9b1;
+            padding-top: 20px;
+        }
+
         button {
-            padding: 10px 20px;
             background: #2c2c2c;
-            color: white;
+            color: #fff;
+            padding: 10px 25px;
             border: none;
+            font-family: "Georgia", serif;
+            text-transform: uppercase;
+            letter-spacing: 1px;
             cursor: pointer;
-            font-family: inherit;
+            margin: 0 10px;
         }
-        button:hover { background: #444; }
+
+        button:hover { background: #555; }
     </style>
 </head>
 <body>
@@ -100,90 +152,95 @@
 </header>
 
 <main>
-    <h2>Historical Crossword Puzzle No. 1</h2>
-    <p class="meta">Originally published for E.A.W. Members, 1937. Prizes included "The Life and Letters of Sebastian Ziani de Ferranti."</p>
+    <div class="crossword-container">
+        <div class="magazine-header">
+            <h2>Crossword Puzzle</h2>
+            <span class="puzzle-meta">Number 1 &bull; Closing Date: Friday, Oct 15th, 1937</span>
+        </div>
 
-    <div class="crossword-wrapper">
-        <div id="grid" class="grid"></div>
+        <div class="flex-layout">
+            <div id="grid" class="grid"></div>
 
-        <div class="clues-section">
-            <div class="clue-list">
-                <h3>ACROSS</h3>
-                <ul id="across-clues">
-                    <li><strong>1.</strong> The Greeks would call it "amber" light.</li>
-                    <li><strong>8.</strong> An electric lamp.</li>
-                    <li><strong>11.</strong> A slender string.</li>
-                    <li><strong>12.</strong> To join up.</li>
-                    <li><strong>13.</strong> Automobile Association.</li>
-                    <li><strong>14.</strong> Paradise.</li>
-                    <li><strong>15.</strong> To employ with diligence.</li>
-                    <li><strong>16.</strong> Unit of resistance.</li>
-                    <li><strong>17.</strong> A code.</li>
-                    <li><strong>19.</strong> Soil.</li>
-                    <li><strong>21.</strong> Pertaining to reproduction of a species.</li>
-                    <li><strong>24.</strong> Negative.</li>
-                    <li><strong>25.</strong> Refusal.</li>
-                    <li><strong>27.</strong> Proceed.</li>
-                    <li><strong>28.</strong> Father.</li>
-                    <li><strong>29.</strong> Confine.</li>
-                    <li><strong>30.</strong> Territorial Force.</li>
-                    <li><strong>31.</strong> Vermillion.</li>
-                    <li><strong>34.</strong> Small lake.</li>
-                    <li><strong>36.</strong> Artillery Reserve.</li>
-                    <li><strong>37.</strong> Thanks.</li>
-                    <li><strong>39.</strong> A dangerous whirlpool.</li>
-                    <li><strong>42.</strong> Demons.</li>
-                    <li><strong>44.</strong> Each (abbrev.).</li>
-                    <li><strong>45.</strong> Printers' measure.</li>
-                    <li><strong>46.</strong> Electrical Association.</li>
-                    <li><strong>48.</strong> Electrical Engineer.</li>
-                    <li><strong>49.</strong> Stable.</li>
-                    <li><strong>50.</strong> Units of energy.</li>
-                </ul>
-            </div>
-            <div class="clue-list">
-                <h3>DOWN</h3>
-                <ul id="down-clues">
-                    <li><strong>1.</strong> This radiates heat.</li>
-                    <li><strong>2.</strong> Bathing pool.</li>
-                    <li><strong>3.</strong> Power.</li>
-                    <li><strong>4.</strong> To burn incense.</li>
-                    <li><strong>5.</strong> Material.</li>
-                    <li><strong>6.</strong> Ingress.</li>
-                    <li><strong>7.</strong> Lament.</li>
-                    <li><strong>8.</strong> To absorb moisture.</li>
-                    <li><strong>9.</strong> A thin plate.</li>
-                    <li><strong>10.</strong> Bachelor of Art.</li>
-                    <li><strong>18.</strong> Source of power.</li>
-                    <li><strong>19.</strong> A flat piece of marble.</li>
-                    <li><strong>20.</strong> A wanderer.</li>
-                    <li><strong>22.</strong> An element subjected to electro-chemical decomposition.</li>
-                    <li><strong>23.</strong> Separate.</li>
-                    <li><strong>26.</strong> Stern of ship.</li>
-                    <li><strong>29.</strong> Measure.</li>
-                    <li><strong>31.</strong> Stupid.</li>
-                    <li><strong>32.</strong> Pertaining to the nose.</li>
-                    <li><strong>33.</strong> Expiate.</li>
-                    <li><strong>35.</strong> Electrical unit.</li>
-                    <li><strong>38.</strong> Contend.</li>
-                    <li><strong>40.</strong> Meadow.</li>
-                    <li><strong>41.</strong> Regarding.</li>
-                    <li><strong>43.</strong> Myself.</li>
-                    <li><strong>46.</strong> For example.</li>
-                    <li><strong>47.</strong> Like to.</li>
-                </ul>
+            <div class="clues-section">
+                <div class="clue-list">
+                    <h3>Across</h3>
+                    <ul>
+                        <li><strong>1.</strong> The Greeks would call it "amber" light.</li>
+                        <li><strong>8.</strong> An electric lamp.</li>
+                        <li><strong>11.</strong> A slender string.</li>
+                        <li><strong>12.</strong> To join up.</li>
+                        <li><strong>13.</strong> Automobile Association.</li>
+                        <li><strong>14.</strong> Paradise.</li>
+                        <li><strong>15.</strong> To employ with diligence.</li>
+                        <li><strong>16.</strong> Unit of resistance.</li>
+                        <li><strong>17.</strong> A code.</li>
+                        <li><strong>19.</strong> Soil.</li>
+                        <li><strong>21.</strong> Reproduction of a species.</li>
+                        <li><strong>24.</strong> Negative.</li>
+                        <li><strong>25.</strong> Refusal.</li>
+                        <li><strong>27.</strong> Proceed.</li>
+                        <li><strong>28.</strong> Father.</li>
+                        <li><strong>29.</strong> Confine.</li>
+                        <li><strong>30.</strong> Territorial Force.</li>
+                        <li><strong>31.</strong> Vermillion.</li>
+                        <li><strong>34.</strong> Small lake.</li>
+                        <li><strong>36.</strong> Artillery Reserve.</li>
+                        <li><strong>37.</strong> Thanks.</li>
+                        <li><strong>39.</strong> A dangerous whirlpool.</li>
+                        <li><strong>42.</strong> Demons.</li>
+                        <li><strong>44.</strong> Each (abbrev.).</li>
+                        <li><strong>45.</strong> Printers' measure.</li>
+                        <li><strong>46.</strong> Electrical Association.</li>
+                        <li><strong>48.</strong> Electrical Engineer.</li>
+                        <li><strong>49.</strong> Stable.</li>
+                        <li><strong>50.</strong> Units of energy.</li>
+                    </ul>
+                </div>
+                <div class="clue-list">
+                    <h3>Down</h3>
+                    <ul>
+                        <li><strong>1.</strong> This radiates heat.</li>
+                        <li><strong>2.</strong> Bathing pool.</li>
+                        <li><strong>3.</strong> Power.</li>
+                        <li><strong>4.</strong> To burn incense.</li>
+                        <li><strong>5.</strong> Material.</li>
+                        <li><strong>6.</strong> Ingress.</li>
+                        <li><strong>7.</strong> Lament.</li>
+                        <li><strong>8.</strong> To absorb moisture.</li>
+                        <li><strong>9.</strong> A thin plate.</li>
+                        <li><strong>10.</strong> Bachelor of Art.</li>
+                        <li><strong>18.</strong> Source of power.</li>
+                        <li><strong>19.</strong> A flat piece of marble.</li>
+                        <li><strong>20.</strong> A wanderer.</li>
+                        <li><strong>22.</strong> Element for decomposition.</li>
+                        <li><strong>23.</strong> Separate.</li>
+                        <li><strong>26.</strong> Stern of ship.</li>
+                        <li><strong>29.</strong> Measure.</li>
+                        <li><strong>31.</strong> Stupid.</li>
+                        <li><strong>32.</strong> Pertaining to the nose.</li>
+                        <li><strong>33.</strong> Expiate.</li>
+                        <li><strong>35.</strong> Electrical unit.</li>
+                        <li><strong>38.</strong> Contend.</li>
+                        <li><strong>40.</strong> Meadow.</li>
+                        <li><strong>41.</strong> Regarding.</li>
+                        <li><strong>43.</strong> Myself.</li>
+                        <li><strong>46.</strong> For example.</li>
+                        <li><strong>47.</strong> Like to.</li>
+                    </ul>
+                </div>
             </div>
         </div>
-    </div>
 
-    <div class="controls">
-        <button onclick="checkAnswers()">Check My Answers</button>
-        <button onclick="revealSolution()">Reveal Solution</button>
+        <div class="controls">
+            <button onclick="checkAnswers()">Check Answers</button>
+            <button onclick="revealSolution()">Reveal Solution</button>
+        </div>
     </div>
 </main>
 
+<footer>© LLM Research Diary</footer>
+
 <script>
-// 0 = Black, 1 = White
 const layout = [
     [1,1,1,1,1,1,1,1,0,1,1,1,1],
     [1,1,1,1,0,1,1,1,1,1,0,1,1],
@@ -198,6 +255,15 @@ const layout = [
     [1,1,0,1,1,1,1,1,0,1,1,1,1]
 ];
 
+// Full missing labels added
+const labels = {
+    "0,0": 1, "0,9": 8, "1,0": 11, "1,5": 12, "1,11": 13, "2,0": 14, "2,5": 15, "2,9": 16,
+    "3,0": 17, "3,5": 18, "3,8": 19, "3,12": 20, "4,0": 21, "4,11": 24, "5,0": 25, "5,1": 26,
+    "5,4": 27, "5,7": 28, "5,10": 29, "6,0": 30, "6,3": 31, "6,10": 32, "6,12": 33, "7,1": 34,
+    "7,3": 35, "7,6": 36, "7,9": 37, "7,12": 38, "8,0": 39, "8,10": 40, "8,11": 41, "9,0": 42, 
+    "9,4": 44, "9,6": 45, "9,8": 43, "9,11": 46, "10,0": 48, "10,3": 49, "10,9": 50, "10,12": 47
+};
+
 const solutions = [
     ['E','L','E','C','T','R','I','C',null,'B','U','L','B'],
     ['L','I','N','E',null,'E','N','R','O','L',null,'A','A'],
@@ -207,21 +273,15 @@ const solutions = [
     ['N','A','Y',null,'G','O',null,'P','A',null,'D','A','M'],
     ['T','F',null,'C','I','N','N','A','B','A','R',null,'A'],
     [null,'T','A','R','N',null,'A','R',null,'T','A',null,'D'],
-    ['V',null,'M','A','E','L','S','T','R','O','M',null],
+    ['V',null,'M','A','E','L','S','T','R','O','M','S',null],
     ['I','M','P','S',null,'E','A',null,'E','N',null,'E','A'],
     ['E','E',null,'S','T','A','L','L',null,'E','R','G','S']
 ];
 
-const labels = {
-    "0,0": 1, "0,9": 8, "1,0": 11, "1,5": 12, "1,11": 13, "2,0": 14, "2,5": 15, "2,9": 16,
-    "3,0": 17, "3,6": 18, "3,8": 19, "3,12": 20, "4,2": 21, "4,11": 24, "5,0": 25, "5,1": 26,
-    "5,4": 27, "5,7": 28, "5,10": 29, "6,0": 30, "6,3": 31, "6,10": 32, "6,12": 33, "7,1": 34,
-    "7,6": 36, "7,9": 37, "7,12": 38, "8,0": 39, "8,10": 40, "8,11": 41, "9,0": 42, "9,8": 43,
-    "9,4": 44, "9,6": 45, "9,11": 46, "10,0": 48, "10,3": 49, "10,9": 50, "10,12": 47
-};
-
 const gridDiv = document.getElementById('grid');
+const inputs = [];
 
+// Build Grid
 layout.forEach((row, r) => {
     row.forEach((type, c) => {
         const cell = document.createElement('div');
@@ -236,39 +296,58 @@ layout.forEach((row, r) => {
             const input = document.createElement('input');
             input.id = `cell-${r}-${c}`;
             input.maxLength = 1;
+            input.dataset.row = r;
+            input.dataset.col = c;
+            
+            // Auto-advance logic
+            input.addEventListener('input', (e) => {
+                if (e.target.value.length === 1) {
+                    focusNext(r, c);
+                }
+            });
+            
+            // Backspace logic
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && !input.value) {
+                    focusPrev(r, c);
+                }
+            });
+
             cell.appendChild(input);
+            inputs.push(input);
         }
         gridDiv.appendChild(cell);
     });
 });
 
+function focusNext(r, c) {
+    const idx = inputs.findIndex(i => i.dataset.row == r && i.dataset.col == c);
+    if (idx < inputs.length - 1) inputs[idx + 1].focus();
+}
+
+function focusPrev(r, c) {
+    const idx = inputs.findIndex(i => i.dataset.row == r && i.dataset.col == c);
+    if (idx > 0) inputs[idx - 1].focus();
+}
+
 function checkAnswers() {
-    let correct = true;
-    layout.forEach((row, r) => {
-        row.forEach((type, c) => {
-            if (type === 1) {
-                const input = document.getElementById(`cell-${r}-${c}`);
-                if (input.value.toUpperCase() !== solutions[r][c]) {
-                    input.style.color = 'red';
-                    correct = false;
-                } else {
-                    input.style.color = 'green';
-                }
-            }
-        });
+    inputs.forEach(input => {
+        const r = input.dataset.row;
+        const c = input.dataset.col;
+        if (input.value.toUpperCase() === solutions[r][c]) {
+            input.style.color = "#2e7d32";
+        } else if (input.value !== "") {
+            input.style.color = "#c62828";
+        }
     });
-    if (correct) alert("Excellent! Every connection is correct.");
 }
 
 function revealSolution() {
-    layout.forEach((row, r) => {
-        row.forEach((type, c) => {
-            if (type === 1) {
-                const input = document.getElementById(`cell-${r}-${c}`);
-                input.value = solutions[r][c];
-                input.style.color = 'blue';
-            }
-        });
+    inputs.forEach(input => {
+        const r = input.dataset.row;
+        const c = input.dataset.col;
+        input.value = solutions[r][c];
+        input.style.color = "#1565c0";
     });
 }
 </script>
