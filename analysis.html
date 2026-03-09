@@ -159,6 +159,33 @@
             line-height: 1.7;
         }
 
+        /* ── Lightbox overlay ───────────────────────────────────────────── */
+        .lightbox-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .lightbox-overlay.active {
+            display: flex;
+        }
+        
+        .lightbox-overlay img {
+            max-width: 90vw;
+            max-height: 90vh;
+            object-fit: contain;
+            box-shadow: 0 0 40px rgba(0,0,0,0.8);
+        }
+        
+        .figure-block img {
+            cursor: zoom-in;
+        }
+        
         /* ── Divider ────────────────────────────────────────────────── */
         .ornament {
             text-align: center;
@@ -787,5 +814,31 @@
 
 <footer>© LLM Research Diary</footer>
 
+<!-- Lightbox -->
+<div class="lightbox-overlay" id="lightbox">
+    <img id="lightbox-img" src="" alt="">
+</div>
+
+<script>
+    const lightbox    = document.getElementById('lightbox');
+    const lightboxImg = document.getElementById('lightbox-img');
+
+    document.querySelectorAll('.figure-block img').forEach(img => {
+        img.addEventListener('click', () => {
+            lightboxImg.src = img.src;
+            lightboxImg.alt = img.alt;
+            lightbox.classList.add('active');
+        });
+    });
+
+    lightbox.addEventListener('click', () => {
+        lightbox.classList.remove('active');
+    });
+
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') lightbox.classList.remove('active');
+    });
+</script>
+    
 </body>
 </html>
