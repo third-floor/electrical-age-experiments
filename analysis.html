@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Co-mention Analysis — LLM Research Diary</title>
+    <title>Co-mention & Location Analysis — LLM Research Diary</title>
     <link rel="stylesheet" href="css/style.css">
     <style>
         /* ── Page layout ───────────────────────────────────────────── */
@@ -214,12 +214,11 @@
 <main>
 <div class="analysis-container">
 
-    <!-- ── Page header ──────────────────────────────────────────────── -->
     <div class="page-header">
-        <h2>Co-mention Analysis</h2>
-        <span class="subtitle">Who appeared together — and what that tells us</span>
+        <h2>Co-mention & Geographic Analysis</h2>
+        <span class="subtitle">Social and Spatial Networks in The Electrical Age</span>
         <div class="dataset-meta">
-            The Electrical Age &bull; 1936–1982 &bull; 20,037 records &bull; 10,423 individuals
+            1926–1986 &bull; 72,688 location records &bull; 20,037 person records &bull; 10,423 individuals
         </div>
     </div>
 
@@ -232,9 +231,6 @@
         and 3,807 unique articles.
     </p>
 
-    <!-- ════════════════════════════════════════════════════════════════
-         1. STRUCTURAL OVERVIEW
-    ═════════════════════════════════════════════════════════════════ -->
     <div class="analysis-section">
         <div class="section-header">
             <span class="section-number">I</span>
@@ -307,9 +303,6 @@
 
     <div class="ornament">— ✦ —</div>
 
-    <!-- ════════════════════════════════════════════════════════════════
-         2. CO-MENTION EXCLUSIVITY
-    ═════════════════════════════════════════════════════════════════ -->
     <div class="analysis-section">
         <div class="section-header">
             <span class="section-number">II</span>
@@ -358,9 +351,6 @@
 
     <div class="ornament">— ✦ —</div>
 
-    <!-- ════════════════════════════════════════════════════════════════
-         3. ORGANISATIONAL CLUSTERING
-    ═════════════════════════════════════════════════════════════════ -->
     <div class="analysis-section">
         <div class="section-header">
             <span class="section-number">III</span>
@@ -407,9 +397,6 @@
 
     <div class="ornament">— ✦ —</div>
 
-    <!-- ════════════════════════════════════════════════════════════════
-         4. GENDER ANALYSIS
-    ═════════════════════════════════════════════════════════════════ -->
     <div class="analysis-section">
         <div class="section-header">
             <span class="section-number">IV</span>
@@ -494,9 +481,6 @@
 
     <div class="ornament">— ✦ —</div>
 
-    <!-- ════════════════════════════════════════════════════════════════
-         5. ROLE & CONTEXT ANALYSIS
-    ═════════════════════════════════════════════════════════════════ -->
     <div class="analysis-section">
         <div class="section-header">
             <span class="section-number">V</span>
@@ -546,9 +530,6 @@
 
     <div class="ornament">— ✦ —</div>
 
-    <!-- ════════════════════════════════════════════════════════════════
-         6. EGO NETWORK — CAROLINE HASLETT
-    ═════════════════════════════════════════════════════════════════ -->
     <div class="analysis-section">
         <div class="section-header">
             <span class="section-number">VI</span>
@@ -619,9 +600,6 @@
 
     <div class="ornament">— ✦ —</div>
 
-    <!-- ════════════════════════════════════════════════════════════════
-         7. ARTICLE TYPE BREAKDOWN
-    ═════════════════════════════════════════════════════════════════ -->
     <div class="analysis-section">
         <div class="section-header">
             <span class="section-number">VII</span>
@@ -683,9 +661,6 @@
 
     <div class="ornament">— ✦ —</div>
 
-    <!-- ════════════════════════════════════════════════════════════════
-         8. DEPICTION VS. MENTION
-    ═════════════════════════════════════════════════════════════════ -->
     <div class="analysis-section">
         <div class="section-header">
             <span class="section-number">VIII</span>
@@ -746,9 +721,6 @@
 
     <div class="ornament">— ✦ —</div>
 
-    <!-- ════════════════════════════════════════════════════════════════
-         9. TEMPORAL PATTERNS
-    ═════════════════════════════════════════════════════════════════ -->
     <div class="analysis-section">
         <div class="section-header">
             <span class="section-number">IX</span>
@@ -809,12 +781,141 @@
         </div>
     </div>
 
+    <div class="ornament">— ✦ —</div>
+
+    <div class="analysis-section">
+        <div class="section-header">
+            <span class="section-number">X</span>
+            <h3>Geographic Overview</h3>
+        </div>
+
+        <p class="narrative">
+            Transitioning from social networks to spatial coverage, this section maps the reach of 
+            <em>The Electrical Age</em> across 72,688 records from 1926 to 1986[cite: 3, 42]. 
+            The dataset tracks 8,045 distinct locations across 289 countries, revealing how the 
+            magazine served as a bridge between local branches and the global electrical industry[cite: 3, 26, 32].
+        </p>
+
+        <div class="figure-block">
+            <img src="assets/charts/top_20_locations.png"
+                 alt="Top 20 most-mentioned standardised locations">
+            <div class="figure-caption">
+                <strong>Fig. 10.1 — Top 20 most-mentioned standardised locations.</strong>
+                London stands as the primary hub of activity with 5,799 mentions[cite: 53, 120]. 
+                The distribution highlights major industrial centers like Birmingham, Manchester, 
+                and Glasgow as secondary nodes in the magazine's geographic network[cite: 82, 84, 94].
+            </div>
+        </div>
+
+        <div class="finding">
+            The record is overwhelmingly UK-centric, with the United Kingdom accounting for 86.56% 
+            of all mentions across over 6,000 distinct locations[cite: 136].
+        </div>
+    </div>
+
+    <div class="ornament">— ✦ —</div>
+
+    <div class="analysis-section">
+        <div class="section-header">
+            <span class="section-number">XI</span>
+            <h3>Temporal Geographic Focus</h3>
+        </div>
+
+        <p class="narrative">
+            Mapping mentions over time reveals the magazine's fluctuating focus. While London 
+            remains the constant center, international coverage and mentions of the "Rest of England" 
+            show distinct cyclical patterns, peaking during periods of industrial expansion[cite: 198, 244].
+        </p>
+
+        <div class="figures-row">
+            <div class="figure-block">
+                <img src="assets/charts/uk_vs_international_over_time.png"
+                     alt="UK vs International mentions over time">
+                <div class="figure-caption">
+                    <strong>Fig. 11.1 — UK vs. International Mentions.</strong>
+                    Stacked absolute counts and 5-year rolling averages show a notable peak in 
+                    international engagement during the late 1950s[cite: 198, 214].
+                </div>
+            </div>
+            <div class="figure-block">
+                <img src="assets/charts/regional_hierarchy_over_time.png"
+                     alt="London, Rest of England, and Devolved Nations over time">
+                <div class="figure-caption">
+                    <strong>Fig. 11.2 — Regional Hierarchy (UK Only).</strong>
+                    Within Britain, the proportional share of "Rest of England" grew steadily 
+                    from 1926 until the mid-1970s, reflecting the growth of provincial 
+                    professional chapters[cite: 271, 287].
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="ornament">— ✦ —</div>
+
+    <div class="analysis-section">
+        <div class="section-header">
+            <span class="section-number">XII</span>
+            <h3>Geographic Diversity</h3>
+        </div>
+
+        <p class="narrative">
+            Geographic diversity per issue—measured by distinct countries mentioned—provides 
+            a proxy for the magazine's editorial "horizon"[cite: 342, 343]. The late 1950s 
+            represent the most globally expansive era of the publication[cite: 364].
+        </p>
+
+        <div class="figure-block">
+            <img src="assets/charts/distinct_countries_per_issue.png"
+                 alt="Distinct countries per issue over time">
+            <div class="figure-caption">
+                <strong>Fig. 12.1 — Distinct Countries per Issue.</strong>
+                Each dot represents a specific issue. The 5-year rolling mean peaks at 
+                approximately 30 countries per issue in 1959[cite: 343, 358].
+            </div>
+        </div>
+
+        <div class="finding">
+            The most geographically diverse issue recorded is Volume 6, No 17 (1959), 
+            which featured 51 distinct countries across 469 total mentions[cite: 366].
+        </div>
+    </div>
+
+    <div class="ornament">— ✦ —</div>
+
+    <div class="analysis-section">
+        <div class="section-header">
+            <span class="section-number">XIII</span>
+            <h3>Geographic Co-occurrence</h3>
+        </div>
+
+        <p class="narrative">
+            Beyond individual mentions, we can analyze which locations are frequently linked 
+            together. Using a "Lift" score—the ratio of observed to expected co-occurrence—we 
+            identify geographic pairs that appear together significantly more often than 
+            chance would predict[cite: 471, 472].
+        </p>
+
+        <div class="figure-block">
+            <img src="assets/charts/location_cooccurrence_lift.png"
+                 alt="Top 20 location pairs by lift score">
+            <div class="figure-caption">
+                <strong>Fig. 13.1 — Top Location Pairs by Lift Score.</strong>
+                Highly linked pairs often represent close-proximity industrial neighbors or 
+                international partnerships, such as Gothenburg and Malmö in Sweden[cite: 532, 534].
+            </div>
+        </div>
+
+        <div class="finding">
+            Many high-lift pairs are extremely localized, such as Urmston and Whitefield in 
+            Lancashire, appearing together in three distinct issues with a lift score of 77.67[cite: 534].
+        </div>
+    </div>
+
 </div>
 </main>
 
 <footer>© LLM Research Diary</footer>
 
-<!-- Lightbox -->
 <div class="lightbox-overlay" id="lightbox">
     <img id="lightbox-img" src="" alt="">
 </div>
