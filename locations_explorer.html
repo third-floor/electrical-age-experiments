@@ -6,14 +6,13 @@
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
     <style>
-        /* ── Page layout ─────────────────────────────────────────────── */
         .explorer-container {
             max-width: 1100px;
             margin: 2rem auto;
             padding: 0 20px;
         }
 
-        /* ── Magazine-style page header ──────────────────────────────── */
+        /* ── Page header ─────────────────────────────────────────────── */
         .page-header {
             text-align: center;
             border-bottom: 3px double #2c2c2c;
@@ -41,78 +40,144 @@
             text-transform: uppercase;
         }
 
-        /* ── Search bar ──────────────────────────────────────────────── */
-        .search-row {
-            display: flex;
-            gap: 0.75rem;
-            align-items: center;
+        /* ── Selection area ──────────────────────────────────────────── */
+        .selection-area {
+            background: #fdfaf3;
+            border: 1px solid #d3c9b1;
+            padding: 1rem 1.25rem 1.25rem;
             margin-bottom: 1.5rem;
-            flex-wrap: wrap;
         }
-        .search-row label {
+        .selection-area-hdr {
             font-family: "Georgia", serif;
             font-variant: small-caps;
-            font-size: 0.9rem;
-            color: #555;
-            white-space: nowrap;
+            font-size: 0.82rem;
+            letter-spacing: 0.05em;
+            color: #888;
+            margin-bottom: 0.75rem;
         }
-        .search-row input {
+
+        /* ── Slots ───────────────────────────────────────────────────── */
+        #slots {
+            display: flex;
+            flex-direction: column;
+            gap: 0.55rem;
+        }
+        .slot {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+        .slot-swatch {
+            width: 14px;
+            height: 14px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+        .slot-inner {
+            position: relative;
             flex: 1;
-            min-width: 240px;
-            padding: 0.55rem 0.8rem;
-            font-size: 0.95rem;
+        }
+        .slot-inner input {
+            width: 100%;
+            padding: 0.45rem 0.75rem;
+            font-size: 0.9rem;
             border: 1px solid #ccc;
             border-radius: 3px;
             font-family: "Georgia", serif;
+            box-sizing: border-box;
+            background: #fff;
         }
-        .search-row input:focus {
+        .slot-inner input:focus {
             outline: none;
             border-color: #2c2c2c;
         }
+        .slot-filled-label {
+            flex: 1;
+            font-family: "Georgia", serif;
+            font-size: 0.88rem;
+            color: #2c2c2c;
+            padding: 0.4rem 0.6rem;
+            background: #fff;
+            border: 1px solid #d3c9b1;
+            border-radius: 3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .slot-remove {
+            font-size: 0.75rem;
+            color: #bbb;
+            cursor: pointer;
+            padding: 0 4px;
+            font-family: "Georgia", serif;
+            flex-shrink: 0;
+            user-select: none;
+        }
+        .slot-remove:hover { color: #c62828; }
 
         /* ── Dropdown ────────────────────────────────────────────────── */
-        .dropdown-wrap {
-            position: relative;
-            flex: 1;
-            min-width: 240px;
-        }
-        #loc-dropdown {
+        .loc-dropdown {
             position: absolute;
             top: calc(100% + 2px);
             left: 0;
             right: 0;
-            max-height: 280px;
+            max-height: 260px;
             overflow-y: auto;
             background: #fff;
             border: 1px solid #ccc;
             border-top: none;
-            z-index: 200;
+            z-index: 300;
             display: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         }
         .dd-item {
-            padding: 0.45rem 0.8rem;
-            font-size: 0.9rem;
+            padding: 0.4rem 0.8rem;
+            font-size: 0.88rem;
             cursor: pointer;
-            border-bottom: 1px solid #f0f0f0;
+            border-bottom: 1px solid #f5f5f5;
+            font-family: "Georgia", serif;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            font-family: "Georgia", serif;
         }
         .dd-item:hover, .dd-item.active { background: #f5f0e8; }
-        #selected-pill {
-            display: none;
-            background: #2c2c2c;
-            color: #fff;
-            font-size: 0.8rem;
-            padding: 0.3rem 0.75rem;
-            border-radius: 2px;
+        .dd-group-label {
+            padding: 0.22rem 0.8rem;
+            font-size: 0.71rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #bbb;
+            background: #fafafa;
             font-family: "Georgia", serif;
-            max-width: 340px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            border-bottom: 1px solid #f0f0f0;
+            pointer-events: none;
         }
+
+        /* ── Active selection pills ──────────────────────────────────── */
+        #active-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin-top: 0.75rem;
+        }
+        .active-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.78rem;
+            font-family: "Georgia", serif;
+            padding: 0.25rem 0.6rem;
+            border-radius: 2px;
+            color: #fff;
+            cursor: default;
+        }
+        .active-pill .pill-x {
+            cursor: pointer;
+            opacity: 0.75;
+            font-size: 0.85rem;
+            line-height: 1;
+        }
+        .active-pill .pill-x:hover { opacity: 1; }
 
         /* ── Placeholder ─────────────────────────────────────────────── */
         #placeholder {
@@ -125,10 +190,8 @@
             background: #fdfaf3;
         }
 
-        /* ── Section headers ─────────────────────────────────────────── */
-        .section-block {
-            margin-bottom: 3rem;
-        }
+        /* ── Sections ────────────────────────────────────────────────── */
+        .section-block { margin-bottom: 3rem; }
         .section-header {
             border-bottom: 1px solid #2c2c2c;
             margin-bottom: 1.25rem;
@@ -158,57 +221,58 @@
             margin-bottom: 1rem;
         }
 
-        /* ── Stat cards ──────────────────────────────────────────────── */
-        .stat-grid {
+        /* ── Overview cards ──────────────────────────────────────────── */
+        #overview-cards {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-            gap: 1rem;
-            margin-bottom: 1.5rem;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 0.75rem;
         }
-        .stat-card {
-            background: #fdfaf3;
+        .overview-card {
             border: 1px solid #d3c9b1;
-            padding: 0.9rem 1rem;
+            overflow: hidden;
         }
-        .stat-label {
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: #888;
+        .overview-card-hdr {
+            padding: 0.4rem 0.75rem;
             font-family: "Georgia", serif;
-            margin-bottom: 0.3rem;
+            font-size: 0.8rem;
+            color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
-        .stat-value {
-            font-size: 1.55rem;
+        .overview-card-body {
+            padding: 0.6rem 0.75rem;
+            background: #fdfaf3;
+        }
+        .ov-row {
+            display: flex;
+            justify-content: space-between;
             font-family: "Georgia", serif;
+            font-size: 0.84rem;
+            padding: 0.2rem 0;
+            border-bottom: 1px solid #f0ebe0;
             color: #2c2c2c;
-            font-weight: normal;
         }
-        .stat-sub {
-            font-size: 0.78rem;
-            color: #999;
-            font-family: "Georgia", serif;
-            font-style: italic;
-            margin-top: 0.15rem;
-        }
+        .ov-row:last-child { border-bottom: none; }
+        .ov-key { color: #888; font-size: 0.78rem; }
 
         /* ── Tier pill ───────────────────────────────────────────────── */
         .tier-pill {
             display: inline-block;
-            padding: 0.2rem 0.65rem;
-            font-size: 0.8rem;
+            padding: 0.15rem 0.5rem;
+            font-size: 0.76rem;
             font-family: "Georgia", serif;
             border: 1px solid currentColor;
         }
-        .tier-London            { color: #185FA5; background: #E6F1FB; }
-        .tier-Rest              { color: #085041; background: #E1F5EE; }
-        .tier-Devolved          { color: #3C3489; background: #EEEDFE; }
-        .tier-International     { color: #712B13; background: #FAECE7; }
-        .tier-Unknown           { color: #444; background: #F1EFE8; }
+        .tier-London        { color: #185FA5; background: #E6F1FB; }
+        .tier-Rest          { color: #085041; background: #E1F5EE; }
+        .tier-Devolved      { color: #3C3489; background: #EEEDFE; }
+        .tier-International { color: #712B13; background: #FAECE7; }
+        .tier-Unknown       { color: #444;    background: #F1EFE8; }
 
         /* ── Figure blocks ───────────────────────────────────────────── */
         .figure-block {
-            margin: 1.5rem 0;
+            margin: 1.25rem 0;
             background: #fdfaf3;
             border: 1px solid #d3c9b1;
             padding: 16px;
@@ -226,18 +290,16 @@
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 16px;
-            margin: 1.5rem 0;
+            margin: 1.25rem 0;
         }
         @media (max-width: 720px) { .figures-row { grid-template-columns: 1fr; } }
-
-        /* ── Chart wrappers ──────────────────────────────────────────── */
         .chart-wrap { position: relative; width: 100%; }
 
-        /* ── Key finding ─────────────────────────────────────────────── */
+        /* ── Finding callout ─────────────────────────────────────────── */
         .finding {
             border-left: 3px solid #2c2c2c;
             padding: 0.6rem 1rem;
-            margin: 1.25rem 0;
+            margin: 1rem 0;
             background: #f5f0e8;
             font-family: "Georgia", serif;
             font-size: 0.9rem;
@@ -246,35 +308,52 @@
             line-height: 1.7;
         }
 
+        /* ── In-chart legend ─────────────────────────────────────────── */
+        .chart-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.7rem 1.2rem;
+            margin-bottom: 0.5rem;
+        }
+        .chart-legend span {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-family: "Georgia", serif;
+            font-size: 0.8rem;
+            color: #555;
+        }
+        .legend-line {
+            width: 24px;
+            height: 3px;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+
         /* ── Co-occurrence table ─────────────────────────────────────── */
         table.cooc-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.88rem;
+            font-size: 0.86rem;
             font-family: "Georgia", serif;
-            margin-top: 0.75rem;
+            margin-top: 0.6rem;
         }
         table.cooc-table th {
             background: #2c2c2c;
             color: #fff;
-            padding: 0.4rem 0.7rem;
+            padding: 0.38rem 0.65rem;
             text-align: left;
             font-weight: normal;
             font-variant: small-caps;
             letter-spacing: 0.05em;
         }
         table.cooc-table td {
-            padding: 0.35rem 0.7rem;
+            padding: 0.32rem 0.65rem;
             border-bottom: 1px solid #e0d8c8;
-            vertical-align: middle;
         }
         table.cooc-table tr:nth-child(even) td { background: #fdfaf3; }
-        table.cooc-table tr.highlight-row td {
-            background: #f5f0e8;
-            font-weight: bold;
-        }
 
-        /* ── Ornament ────────────────────────────────────────────────── */
+        /* ── Ornament & misc ─────────────────────────────────────────── */
         .ornament {
             text-align: center;
             color: #bbb;
@@ -282,16 +361,13 @@
             margin: 2.5rem 0 2rem;
             letter-spacing: 8px;
         }
-
-        /* ── No-data notice ──────────────────────────────────────────── */
         .no-data {
             font-family: "Georgia", serif;
             font-style: italic;
             color: #999;
             font-size: 0.9rem;
-            padding: 1rem 0;
+            padding: 0.75rem 0;
         }
-
         #content { display: none; }
     </style>
 </head>
@@ -316,94 +392,70 @@
 
     <div class="page-header">
         <h2>Location Explorer</h2>
-        <span class="subtitle">How any location sits within the geographic record of The Electrical Age</span>
+        <span class="subtitle">Explore and compare up to ten locations across the full geographic record</span>
         <div class="dataset-meta" id="header-meta">Loading dataset…</div>
     </div>
 
-    <!-- Search -->
-    <div class="search-row">
-        <label for="loc-input">Select location</label>
-        <div class="dropdown-wrap">
-            <input type="text" id="loc-input"
-                   placeholder="Type to search all locations…"
-                   autocomplete="off">
-            <div id="loc-dropdown"></div>
-        </div>
-        <div id="selected-pill"></div>
+    <!-- Selection area -->
+    <div class="selection-area">
+        <div class="selection-area-hdr">Select locations to explore (up to 10)</div>
+        <div id="slots"></div>
+        <div id="active-pills"></div>
     </div>
 
-    <!-- Placeholder -->
     <div id="placeholder">
-        Search for a location above to see how it sits within the full dataset.
+        Search for a location above to begin. Add more to compare them side by side.
     </div>
 
-    <!-- All analysis sections -->
     <div id="content">
 
-        <!-- 1. Overview -->
+        <!-- I. Overview -->
         <div class="section-block">
             <div class="section-header">
                 <span class="section-number">I</span>
                 <h3>Overview</h3>
             </div>
-            <div class="stat-grid" id="stat-grid"></div>
-            <div id="overview-finding" class="finding"></div>
+            <div id="overview-cards"></div>
+            <div id="overview-finding" class="finding" style="margin-top:1rem"></div>
         </div>
 
         <div class="ornament">— ✦ —</div>
 
-        <!-- 2. Mentions over time -->
+        <!-- II. Mentions over time -->
         <div class="section-block">
             <div class="section-header">
                 <span class="section-number">II</span>
                 <h3>Mentions Over Time</h3>
             </div>
-            <p class="section-note">
-                Annual mention counts with rolling average, and this location's share of all
-                mentions compared with the top eight locations overall.
-            </p>
+            <p class="section-note">Annual mention counts with rolling averages (top). Share of all annual mentions (bottom).</p>
             <div class="figure-block">
-                <div class="chart-wrap" style="height:200px">
-                    <canvas id="ch-abs"></canvas>
-                </div>
+                <div id="legend-abs" class="chart-legend"></div>
+                <div class="chart-wrap" style="height:220px"><canvas id="ch-abs"></canvas></div>
                 <div class="figure-caption" id="cap-abs"></div>
             </div>
             <div class="figure-block">
-                <div class="chart-wrap" style="height:220px">
-                    <canvas id="ch-share"></canvas>
-                </div>
-                <div class="figure-caption">
-                    Share of all annual mentions. This location is shown with a thicker line.
-                    Other lines are the top eight locations overall for comparison.
-                </div>
+                <div id="legend-share" class="chart-legend"></div>
+                <div class="chart-wrap" style="height:240px"><canvas id="ch-share"></canvas></div>
+                <div class="figure-caption">Share of all annual mentions. Selected location(s) shown with thicker lines.</div>
             </div>
         </div>
 
         <div class="ornament">— ✦ —</div>
 
-        <!-- 3. Geographic context -->
+        <!-- III. Geographic tier context -->
         <div class="section-block">
             <div class="section-header">
                 <span class="section-number">III</span>
                 <h3>Geographic Tier Context</h3>
             </div>
-            <p class="section-note">
-                How this location's tier has trended across the journal's run, and where
-                it ranks among other locations in the same geographic tier.
-            </p>
+            <p class="section-note">Four-tier shares over time with selected tier(s) highlighted. Rank among peers in the same tier.</p>
             <div class="figures-row">
                 <div class="figure-block">
-                    <div class="chart-wrap" style="height:240px">
-                        <canvas id="ch-tier"></canvas>
-                    </div>
-                    <div class="figure-caption">
-                        Four-tier shares over time. This location's tier is shown with a thicker line.
-                    </div>
+                    <div class="chart-wrap" style="height:260px"><canvas id="ch-tier"></canvas></div>
+                    <div class="figure-caption">Tier shares over time. Selected tier(s) shown with solid thicker lines.</div>
                 </div>
                 <div class="figure-block">
-                    <div class="chart-wrap" id="ch-rank-wrap" style="height:240px">
-                        <canvas id="ch-rank"></canvas>
-                    </div>
+                    <div class="chart-wrap" id="ch-rank-wrap" style="height:260px"><canvas id="ch-rank"></canvas></div>
                     <div class="figure-caption" id="cap-rank"></div>
                 </div>
             </div>
@@ -411,144 +463,102 @@
 
         <div class="ornament">— ✦ —</div>
 
-        <!-- 4. UK vs International -->
+        <!-- IV. UK vs International -->
         <div class="section-block">
             <div class="section-header">
                 <span class="section-number">IV</span>
                 <h3>UK vs International</h3>
             </div>
-            <p class="section-note">
-                The overall UK and international balance across the journal's run,
-                with this location's own annual share shown below.
-            </p>
+            <p class="section-note">Overall UK and international balance with each selected location's annual share overlaid.</p>
             <div class="figure-block">
-                <div class="chart-wrap" style="height:220px">
-                    <canvas id="ch-uk"></canvas>
-                </div>
+                <div id="legend-uk" class="chart-legend"></div>
+                <div class="chart-wrap" style="height:240px"><canvas id="ch-uk"></canvas></div>
                 <div class="figure-caption" id="cap-uk"></div>
             </div>
         </div>
 
         <div class="ornament">— ✦ —</div>
 
-        <!-- 5 & 6. Issue diversity -->
+        <!-- V & VI. Issue diversity -->
         <div class="section-block">
             <div class="section-header">
                 <span class="section-number">V &amp; VI</span>
                 <h3>Issue Diversity</h3>
             </div>
-            <p class="section-note">
-                Distinct countries and locations per issue over time. Issues that contain
-                the selected location are marked with a star.
-            </p>
+            <p class="section-note">Distinct countries and locations per issue over time. Issues containing a selected location are starred in its colour.</p>
             <div class="figures-row">
                 <div class="figure-block" id="iss-ctry-wrap">
-                    <div class="chart-wrap" style="height:220px">
-                        <canvas id="ch-iss-ctry"></canvas>
-                    </div>
+                    <div class="chart-wrap" style="height:240px"><canvas id="ch-iss-ctry"></canvas></div>
                     <div class="figure-caption">Distinct countries per issue.</div>
                 </div>
                 <div class="figure-block" id="iss-loc-wrap">
-                    <div class="chart-wrap" style="height:220px">
-                        <canvas id="ch-iss-loc"></canvas>
-                    </div>
+                    <div class="chart-wrap" style="height:240px"><canvas id="ch-iss-loc"></canvas></div>
                     <div class="figure-caption">Distinct locations per issue.</div>
                 </div>
             </div>
-            <div id="iss-nodata" class="no-data" style="display:none">
-                No issue-level data available.
-            </div>
+            <div id="iss-nodata" class="no-data" style="display:none">No issue-level data available.</div>
         </div>
 
         <div class="ornament">— ✦ —</div>
 
-        <!-- 7. Ad vs non-ad -->
+        <!-- VII. Ad vs Non-ad -->
         <div class="section-block">
             <div class="section-header">
                 <span class="section-number">VII</span>
                 <h3>Advertisement vs Non-advertisement</h3>
             </div>
-            <p class="section-note">
-                Top fifteen locations for each content type, and the UK share of
-                each type over time.
-            </p>
+            <p class="section-note">Top locations per content type (selected locations highlighted). UK share per content type over time.</p>
             <div class="figures-row">
                 <div class="figure-block">
-                    <div class="chart-wrap" id="ch-ad-wrap" style="height:340px">
-                        <canvas id="ch-ad"></canvas>
-                    </div>
-                    <div class="figure-caption">Top 15 — Advertisement. Selected location highlighted.</div>
+                    <div class="chart-wrap" id="ch-ad-wrap" style="height:340px"><canvas id="ch-ad"></canvas></div>
+                    <div class="figure-caption">Top 15 — Advertisement.</div>
                 </div>
                 <div class="figure-block">
-                    <div class="chart-wrap" id="ch-nonad-wrap" style="height:340px">
-                        <canvas id="ch-nonad"></canvas>
-                    </div>
-                    <div class="figure-caption">Top 15 — Non-advertisement. Selected location highlighted.</div>
+                    <div class="chart-wrap" id="ch-nonad-wrap" style="height:340px"><canvas id="ch-nonad"></canvas></div>
+                    <div class="figure-caption">Top 15 — Non-advertisement.</div>
                 </div>
             </div>
             <div class="figure-block">
-                <div class="chart-wrap" style="height:200px">
-                    <canvas id="ch-uk-type"></canvas>
-                </div>
+                <div class="chart-wrap" style="height:210px"><canvas id="ch-uk-type"></canvas></div>
                 <div class="figure-caption" id="cap-ad"></div>
             </div>
         </div>
 
         <div class="ornament">— ✦ —</div>
 
-        <!-- 8. Co-occurrence -->
+        <!-- VIII. Co-occurrence -->
         <div class="section-block">
             <div class="section-header">
                 <span class="section-number">VIII</span>
                 <h3>Co-occurrence</h3>
             </div>
-            <p class="section-note">
-                Locations appearing in the same issue, ranked by lift score. Lift above 1
-                means the pair appears together more often than chance would predict.
-            </p>
+            <p class="section-note">Locations appearing in the same issue, ranked by lift score. Lift &gt; 1 means the pair appears together more than chance predicts.</p>
             <div id="cooc-finding" class="finding"></div>
-            <div class="figure-block" id="cooc-chart-wrap">
-                <div class="chart-wrap" id="ch-cooc-wrap" style="height:360px">
-                    <canvas id="ch-cooc"></canvas>
-                </div>
-                <div class="figure-caption">
-                    Bars shaded darker indicate lift ≥ 2. Dashed line marks lift = 1 (chance level).
-                </div>
-            </div>
-            <div id="cooc-table-wrap"></div>
-            <div id="cooc-nodata" class="no-data" style="display:none">
-                This location does not appear in any co-occurrence pairs above the minimum threshold.
-            </div>
+            <div id="cooc-charts"></div>
+            <div id="cooc-nodata" class="no-data" style="display:none">No co-occurrence pairs found above the minimum threshold.</div>
         </div>
 
         <div class="ornament">— ✦ —</div>
 
-        <!-- 9. New locations -->
+        <!-- IX. New locations per year -->
         <div class="section-block">
             <div class="section-header">
                 <span class="section-number">IX</span>
                 <h3>New Locations Per Year</h3>
             </div>
-            <p class="section-note">
-                When this location first entered the dataset, shown against the annual
-                rate of new location introductions and the cumulative vocabulary total.
-            </p>
+            <p class="section-note">When each selected location first entered the dataset, shown against the annual rate of new location introductions.</p>
             <div id="debut-finding" class="finding"></div>
             <div class="figure-block">
-                <div class="chart-wrap" style="height:220px">
-                    <canvas id="ch-debut"></canvas>
-                </div>
+                <div class="chart-wrap" style="height:240px"><canvas id="ch-debut"></canvas></div>
                 <div class="figure-caption" id="cap-debut"></div>
             </div>
         </div>
 
     </div><!-- #content -->
-
 </div>
 </main>
 
 <footer>© LLM Research Diary</footer>
-
 <script src="js/locations_explorer.js"></script>
 </body>
 </html>
