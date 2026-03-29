@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Location Explorer — LLM Research Diary</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+    <style>
+        /* ── Page layout ─────────────────────────────────────────────── */
+        .explorer-container {
+            max-width: 1100px;
+            margin: 2rem auto;
+            padding: 0 20px;
+        }
+
+        /* ── Magazine-style page header ──────────────────────────────── */
+        .page-header {
+            text-align: center;
+            border-bottom: 3px double #2c2c2c;
+            margin-bottom: 2rem;
+            padding-bottom: 1.5rem;
+        }
+        .page-header h2 {
+            font-family: "Georgia", serif;
+            font-size: 2.2rem;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            margin: 0 0 0.5rem 0;
+        }
+        .page-header .subtitle {
+            font-family: "Georgia", serif;
+            font-style: italic;
+            color: #555;
+            font-size: 1rem;
+        }
+        .page-header .dataset-meta {
+            margin-top: 1rem;
+            font-size: 0.85rem;
+            color: #777;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* ── Search bar ──────────────────────────────────────────────── */
+        .search-row {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .search-row label {
+            font-family: "Georgia", serif;
+            font-variant: small-caps;
+            font-size: 0.9rem;
+            color: #555;
+            white-space: nowrap;
+        }
+        .search-row input {
+            flex: 1;
+            min-width: 240px;
+            padding: 0.55rem 0.8rem;
+            font-size: 0.95rem;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            font-family: "Georgia", serif;
+        }
+        .search-row input:focus {
+            outline: none;
+            border-color: #2c2c2c;
+        }
+
+        /* ── Dropdown ────────────────────────────────────────────────── */
+        .dropdown-wrap {
+            position: relative;
+            flex: 1;
+            min-width: 240px;
+        }
+        #loc-dropdown {
+            position: absolute;
+            top: calc(100% + 2px);
+            left: 0;
+            right: 0;
+            max-height: 280px;
+            overflow-y: auto;
+            background: #fff;
+            border: 1px solid #ccc;
+            border-top: none;
+            z-index: 200;
+            display: none;
+        }
+        .dd-item {
+            padding: 0.45rem 0.8rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-family: "Georgia", serif;
+        }
+        .dd-item:hover, .dd-item.active { background: #f5f0e8; }
+        #selected-pill {
+            display: none;
+            background: #2c2c2c;
+            color: #fff;
+            font-size: 0.8rem;
+            padding: 0.3rem 0.75rem;
+            border-radius: 2px;
+            font-family: "Georgia", serif;
+            max-width: 340px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* ── Placeholder ─────────────────────────────────────────────── */
+        #placeholder {
+            text-align: center;
+            padding: 4rem 1rem;
+            font-family: "Georgia", serif;
+            color: #999;
+            font-style: italic;
+            border: 1px dashed #d3c9b1;
+            background: #fdfaf3;
+        }
+
+        /* ── Section headers ─────────────────────────────────────────── */
+        .section-block {
+            margin-bottom: 3rem;
+        }
+        .section-header {
+            border-bottom: 1px solid #2c2c2c;
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.4rem;
+            display: flex;
+            align-items: baseline;
+            gap: 0.75rem;
+        }
+        .section-header h3 {
+            font-family: "Georgia", serif;
+            font-variant: small-caps;
+            font-size: 1.3rem;
+            letter-spacing: 2px;
+            margin: 0;
+        }
+        .section-number {
+            font-family: "Georgia", serif;
+            font-style: italic;
+            color: #999;
+            font-size: 0.9rem;
+        }
+        .section-note {
+            font-family: "Georgia", serif;
+            font-style: italic;
+            font-size: 0.88rem;
+            color: #666;
+            margin-bottom: 1rem;
+        }
+
+        /* ── Stat cards ──────────────────────────────────────────────── */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .stat-card {
+            background: #fdfaf3;
+            border: 1px solid #d3c9b1;
+            padding: 0.9rem 1rem;
+        }
+        .stat-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #888;
+            font-family: "Georgia", serif;
+            margin-bottom: 0.3rem;
+        }
+        .stat-value {
+            font-size: 1.55rem;
+            font-family: "Georgia", serif;
+            color: #2c2c2c;
+            font-weight: normal;
+        }
+        .stat-sub {
+            font-size: 0.78rem;
+            color: #999;
+            font-family: "Georgia", serif;
+            font-style: italic;
+            margin-top: 0.15rem;
+        }
+
+        /* ── Tier pill ───────────────────────────────────────────────── */
+        .tier-pill {
+            display: inline-block;
+            padding: 0.2rem 0.65rem;
+            font-size: 0.8rem;
+            font-family: "Georgia", serif;
+            border: 1px solid currentColor;
+        }
+        .tier-London            { color: #185FA5; background: #E6F1FB; }
+        .tier-Rest              { color: #085041; background: #E1F5EE; }
+        .tier-Devolved          { color: #3C3489; background: #EEEDFE; }
+        .tier-International     { color: #712B13; background: #FAECE7; }
+        .tier-Unknown           { color: #444; background: #F1EFE8; }
+
+        /* ── Figure blocks ───────────────────────────────────────────── */
+        .figure-block {
+            margin: 1.5rem 0;
+            background: #fdfaf3;
+            border: 1px solid #d3c9b1;
+            padding: 16px;
+        }
+        .figure-caption {
+            font-family: "Georgia", serif;
+            font-size: 0.82rem;
+            font-style: italic;
+            color: #666;
+            margin-top: 10px;
+            border-top: 1px solid #e0d8c8;
+            padding-top: 8px;
+        }
+        .figures-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin: 1.5rem 0;
+        }
+        @media (max-width: 720px) { .figures-row { grid-template-columns: 1fr; } }
+
+        /* ── Chart wrappers ──────────────────────────────────────────── */
+        .chart-wrap { position: relative; width: 100%; }
+
+        /* ── Key finding ─────────────────────────────────────────────── */
+        .finding {
+            border-left: 3px solid #2c2c2c;
+            padding: 0.6rem 1rem;
+            margin: 1.25rem 0;
+            background: #f5f0e8;
+            font-family: "Georgia", serif;
+            font-size: 0.9rem;
+            font-style: italic;
+            color: #2c2c2c;
+            line-height: 1.7;
+        }
+
+        /* ── Co-occurrence table ─────────────────────────────────────── */
+        table.cooc-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+            font-family: "Georgia", serif;
+            margin-top: 0.75rem;
+        }
+        table.cooc-table th {
+            background: #2c2c2c;
+            color: #fff;
+            padding: 0.4rem 0.7rem;
+            text-align: left;
+            font-weight: normal;
+            font-variant: small-caps;
+            letter-spacing: 0.05em;
+        }
+        table.cooc-table td {
+            padding: 0.35rem 0.7rem;
+            border-bottom: 1px solid #e0d8c8;
+            vertical-align: middle;
+        }
+        table.cooc-table tr:nth-child(even) td { background: #fdfaf3; }
+        table.cooc-table tr.highlight-row td {
+            background: #f5f0e8;
+            font-weight: bold;
+        }
+
+        /* ── Ornament ────────────────────────────────────────────────── */
+        .ornament {
+            text-align: center;
+            color: #bbb;
+            font-size: 1.2rem;
+            margin: 2.5rem 0 2rem;
+            letter-spacing: 8px;
+        }
+
+        /* ── No-data notice ──────────────────────────────────────────── */
+        .no-data {
+            font-family: "Georgia", serif;
+            font-style: italic;
+            color: #999;
+            font-size: 0.9rem;
+            padding: 1rem 0;
+        }
+
+        #content { display: none; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>LLM Development Diary</h1>
+    <nav>
+        <a href="index.html">Reports</a>
+        <a href="analysis.html">Analysis</a>
+        <a href="portraits.html">Our Portrait Page</a>
+        <a href="experiments.html">Experiments</a>
+        <a href="people.html">Individuals</a>
+        <a href="locations.html">Locations</a>
+        <a href="locations_explorer.html">Location Explorer</a>
+        <a href="articles.html">Articles</a>
+    </nav>
+</header>
+
+<main>
+<div class="explorer-container">
+
+    <div class="page-header">
+        <h2>Location Explorer</h2>
+        <span class="subtitle">How any location sits within the geographic record of The Electrical Age</span>
+        <div class="dataset-meta" id="header-meta">Loading dataset…</div>
+    </div>
+
+    <!-- Search -->
+    <div class="search-row">
+        <label for="loc-input">Select location</label>
+        <div class="dropdown-wrap">
+            <input type="text" id="loc-input"
+                   placeholder="Type to search all locations…"
+                   autocomplete="off">
+            <div id="loc-dropdown"></div>
+        </div>
+        <div id="selected-pill"></div>
+    </div>
+
+    <!-- Placeholder -->
+    <div id="placeholder">
+        Search for a location above to see how it sits within the full dataset.
+    </div>
+
+    <!-- All analysis sections -->
+    <div id="content">
+
+        <!-- 1. Overview -->
+        <div class="section-block">
+            <div class="section-header">
+                <span class="section-number">I</span>
+                <h3>Overview</h3>
+            </div>
+            <div class="stat-grid" id="stat-grid"></div>
+            <div id="overview-finding" class="finding"></div>
+        </div>
+
+        <div class="ornament">— ✦ —</div>
+
+        <!-- 2. Mentions over time -->
+        <div class="section-block">
+            <div class="section-header">
+                <span class="section-number">II</span>
+                <h3>Mentions Over Time</h3>
+            </div>
+            <p class="section-note">
+                Annual mention counts with rolling average, and this location's share of all
+                mentions compared with the top eight locations overall.
+            </p>
+            <div class="figure-block">
+                <div class="chart-wrap" style="height:200px">
+                    <canvas id="ch-abs"></canvas>
+                </div>
+                <div class="figure-caption" id="cap-abs"></div>
+            </div>
+            <div class="figure-block">
+                <div class="chart-wrap" style="height:220px">
+                    <canvas id="ch-share"></canvas>
+                </div>
+                <div class="figure-caption">
+                    Share of all annual mentions. This location is shown with a thicker line.
+                    Other lines are the top eight locations overall for comparison.
+                </div>
+            </div>
+        </div>
+
+        <div class="ornament">— ✦ —</div>
+
+        <!-- 3. Geographic context -->
+        <div class="section-block">
+            <div class="section-header">
+                <span class="section-number">III</span>
+                <h3>Geographic Tier Context</h3>
+            </div>
+            <p class="section-note">
+                How this location's tier has trended across the journal's run, and where
+                it ranks among other locations in the same geographic tier.
+            </p>
+            <div class="figures-row">
+                <div class="figure-block">
+                    <div class="chart-wrap" style="height:240px">
+                        <canvas id="ch-tier"></canvas>
+                    </div>
+                    <div class="figure-caption">
+                        Four-tier shares over time. This location's tier is shown with a thicker line.
+                    </div>
+                </div>
+                <div class="figure-block">
+                    <div class="chart-wrap" id="ch-rank-wrap" style="height:240px">
+                        <canvas id="ch-rank"></canvas>
+                    </div>
+                    <div class="figure-caption" id="cap-rank"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="ornament">— ✦ —</div>
+
+        <!-- 4. UK vs International -->
+        <div class="section-block">
+            <div class="section-header">
+                <span class="section-number">IV</span>
+                <h3>UK vs International</h3>
+            </div>
+            <p class="section-note">
+                The overall UK and international balance across the journal's run,
+                with this location's own annual share shown below.
+            </p>
+            <div class="figure-block">
+                <div class="chart-wrap" style="height:220px">
+                    <canvas id="ch-uk"></canvas>
+                </div>
+                <div class="figure-caption" id="cap-uk"></div>
+            </div>
+        </div>
+
+        <div class="ornament">— ✦ —</div>
+
+        <!-- 5 & 6. Issue diversity -->
+        <div class="section-block">
+            <div class="section-header">
+                <span class="section-number">V &amp; VI</span>
+                <h3>Issue Diversity</h3>
+            </div>
+            <p class="section-note">
+                Distinct countries and locations per issue over time. Issues that contain
+                the selected location are marked with a star.
+            </p>
+            <div class="figures-row">
+                <div class="figure-block" id="iss-ctry-wrap">
+                    <div class="chart-wrap" style="height:220px">
+                        <canvas id="ch-iss-ctry"></canvas>
+                    </div>
+                    <div class="figure-caption">Distinct countries per issue.</div>
+                </div>
+                <div class="figure-block" id="iss-loc-wrap">
+                    <div class="chart-wrap" style="height:220px">
+                        <canvas id="ch-iss-loc"></canvas>
+                    </div>
+                    <div class="figure-caption">Distinct locations per issue.</div>
+                </div>
+            </div>
+            <div id="iss-nodata" class="no-data" style="display:none">
+                No issue-level data available.
+            </div>
+        </div>
+
+        <div class="ornament">— ✦ —</div>
+
+        <!-- 7. Ad vs non-ad -->
+        <div class="section-block">
+            <div class="section-header">
+                <span class="section-number">VII</span>
+                <h3>Advertisement vs Non-advertisement</h3>
+            </div>
+            <p class="section-note">
+                Top fifteen locations for each content type, and the UK share of
+                each type over time.
+            </p>
+            <div class="figures-row">
+                <div class="figure-block">
+                    <div class="chart-wrap" id="ch-ad-wrap" style="height:340px">
+                        <canvas id="ch-ad"></canvas>
+                    </div>
+                    <div class="figure-caption">Top 15 — Advertisement. Selected location highlighted.</div>
+                </div>
+                <div class="figure-block">
+                    <div class="chart-wrap" id="ch-nonad-wrap" style="height:340px">
+                        <canvas id="ch-nonad"></canvas>
+                    </div>
+                    <div class="figure-caption">Top 15 — Non-advertisement. Selected location highlighted.</div>
+                </div>
+            </div>
+            <div class="figure-block">
+                <div class="chart-wrap" style="height:200px">
+                    <canvas id="ch-uk-type"></canvas>
+                </div>
+                <div class="figure-caption" id="cap-ad"></div>
+            </div>
+        </div>
+
+        <div class="ornament">— ✦ —</div>
+
+        <!-- 8. Co-occurrence -->
+        <div class="section-block">
+            <div class="section-header">
+                <span class="section-number">VIII</span>
+                <h3>Co-occurrence</h3>
+            </div>
+            <p class="section-note">
+                Locations appearing in the same issue, ranked by lift score. Lift above 1
+                means the pair appears together more often than chance would predict.
+            </p>
+            <div id="cooc-finding" class="finding"></div>
+            <div class="figure-block" id="cooc-chart-wrap">
+                <div class="chart-wrap" id="ch-cooc-wrap" style="height:360px">
+                    <canvas id="ch-cooc"></canvas>
+                </div>
+                <div class="figure-caption">
+                    Bars shaded darker indicate lift ≥ 2. Dashed line marks lift = 1 (chance level).
+                </div>
+            </div>
+            <div id="cooc-table-wrap"></div>
+            <div id="cooc-nodata" class="no-data" style="display:none">
+                This location does not appear in any co-occurrence pairs above the minimum threshold.
+            </div>
+        </div>
+
+        <div class="ornament">— ✦ —</div>
+
+        <!-- 9. New locations -->
+        <div class="section-block">
+            <div class="section-header">
+                <span class="section-number">IX</span>
+                <h3>New Locations Per Year</h3>
+            </div>
+            <p class="section-note">
+                When this location first entered the dataset, shown against the annual
+                rate of new location introductions and the cumulative vocabulary total.
+            </p>
+            <div id="debut-finding" class="finding"></div>
+            <div class="figure-block">
+                <div class="chart-wrap" style="height:220px">
+                    <canvas id="ch-debut"></canvas>
+                </div>
+                <div class="figure-caption" id="cap-debut"></div>
+            </div>
+        </div>
+
+    </div><!-- #content -->
+
+</div>
+</main>
+
+<footer>© LLM Research Diary</footer>
+
+<script src="js/locations_explorer.js"></script>
+</body>
+</html>
