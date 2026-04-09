@@ -147,29 +147,48 @@ function nearbyPages(radius = 2) {
 // ── Search index construction ─────────────────────────────────────────────────
 
 function buildSearchIndexes() {
+  // Deduplicate by (name + filename + page) so the same physical mention isn't
+  // listed twice, but different occurrences of the same name across different
+  // pages/files each get their own dropdown entry.
+
   const seenA = new Set();
   DB.articles.forEach(r => {
-    const t = (r.article_title || '').trim();
-    if (!t || seenA.has(t)) return; seenA.add(t);
-    articleIndex.push({ label: t, subLabel: `${r.date || ''} · ${r.volume_issue || ''}`, record: r });
+    const t   = (r.article_title || '').trim();
+    const key = `${t}||${r.filename || ''}||${r.page_number || ''}`;
+    if (!t || seenA.has(key)) return; seenA.add(key);
+    articleIndex.push({
+      label:    t,
+      subLabel: [r.date, r.volume_issue, r.page_number ? `p.${r.page_number}` : ''].filter(Boolean).join(' · '),
+      record:   r,
+    });
   });
-  articleIndex.sort((a, b) => a.label.localeCompare(b.label));
+  articleIndex.sort((a, b) => a.label.localeCompare(b.label) || a.subLabel.localeCompare(b.subLabel));
 
   const seenL = new Set();
   DB.locations.forEach(r => {
-    const t = (r.location_entry || '').trim();
-    if (!t || seenL.has(t)) return; seenL.add(t);
-    locationIndex.push({ label: t, subLabel: r.location_standardised || '', record: r });
+    const t   = (r.location_entry || '').trim();
+    const key = `${t}||${r.filename || ''}||${r.page_number || ''}`;
+    if (!t || seenL.has(key)) return; seenL.add(key);
+    locationIndex.push({
+      label:    t,
+      subLabel: [r.location_standardised, r.date, r.page_number ? `p.${r.page_number}` : ''].filter(Boolean).join(' · '),
+      record:   r,
+    });
   });
-  locationIndex.sort((a, b) => a.label.localeCompare(b.label));
+  locationIndex.sort((a, b) => a.label.localeCompare(b.label) || a.subLabel.localeCompare(b.subLabel));
 
   const seenP = new Set();
   DB.persons.forEach(r => {
-    const t = (r.standardised_name || r.person_entry || '').trim();
-    if (!t || seenP.has(t)) return; seenP.add(t);
-    personIndex.push({ label: t, subLabel: `${r.role || ''}${r.associated_organisation ? ' · ' + r.associated_organisation : ''}`, record: r });
+    const t   = (r.standardised_name || r.person_entry || '').trim();
+    const key = `${t}||${r.filename || ''}||${r.page_number || ''}`;
+    if (!t || seenP.has(key)) return; seenP.add(key);
+    personIndex.push({
+      label:    t,
+      subLabel: [r.role, r.associated_organisation, r.date, r.page_number ? `p.${r.page_number}` : ''].filter(Boolean).join(' · '),
+      record:   r,
+    });
   });
-  personIndex.sort((a, b) => a.label.localeCompare(b.label));
+  personIndex.sort((a, b) => a.label.localeCompare(b.label) || a.subLabel.localeCompare(b.subLabel));
 }
 
 function getMatches(q, index) {
@@ -361,11 +380,11 @@ function renderConnections() {
 function applyViewContainers() {
   const ids = ['direct-articles','direct-locations','direct-persons','nearby-articles','nearby-locations','nearby-persons'];
   ids.forEach(id => {
-    const tableWrap = document.getElementById(`${id}-table`); // .table-view-wrap div
-    const cardsWrap = document.getElementById(`${id}-wrap`);  // .cards-grid div
+    const tableWrap = document.getElementById(`${id}-table`);
+    const cardsWrap = document.getElementById(`${id}-wrap`);
     if (!tableWrap || !cardsWrap) return;
-    tableWrap.style.display = viewMode === 'table' ? '' : 'none';
-    cardsWrap.style.display = viewMode === 'table' ? 'none' : '';
+    tableWrap.style.display = viewMode === 'table' ? 'block' : 'none';
+    cardsWrap.style.display = viewMode === 'table' ? 'none'  : 'grid';
   });
 }
 
@@ -379,26 +398,24 @@ function sharedFirst(records, dataType) {
 }
 
 function renderSubSection(id, records, dataType) {
-  const tbody  = document.getElementById(`${id}-body`);
-  const wrap   = document.getElementById(`${id}-wrap`);
-  if (!tbody || !wrap) return;
   const sorted = sharedFirst(records, dataType);
   if (viewMode === 'table') {
-    tbody.innerHTML = sorted.map(r => buildTableRow(r, dataType, null, isShared(r, dataType))).join('');
+    const tbody = document.getElementById(`${id}-body`);
+    if (tbody) tbody.innerHTML = sorted.map(r => buildTableRow(r, dataType, null, isShared(r, dataType))).join('');
   } else {
-    wrap.innerHTML = sorted.map(r => buildCard(r, dataType, null, isShared(r, dataType))).join('');
+    const wrap = document.getElementById(`${id}-wrap`);
+    if (wrap) wrap.innerHTML = sorted.map(r => buildCard(r, dataType, null, isShared(r, dataType))).join('');
   }
 }
 
 function renderNearbySubSection(id, items, dataType) {
-  const tbody = document.getElementById(`${id}-body`);
-  const wrap  = document.getElementById(`${id}-wrap`);
-  if (!tbody || !wrap) return;
   const sorted = [...items].sort((a, b) => (isShared(a.record, dataType) ? 0 : 1) - (isShared(b.record, dataType) ? 0 : 1));
   if (viewMode === 'table') {
-    tbody.innerHTML = sorted.map(({ record: r, tag }) => buildTableRow(r, dataType, tag, isShared(r, dataType))).join('');
+    const tbody = document.getElementById(`${id}-body`);
+    if (tbody) tbody.innerHTML = sorted.map(({ record: r, tag }) => buildTableRow(r, dataType, tag, isShared(r, dataType))).join('');
   } else {
-    wrap.innerHTML = sorted.map(({ record: r, tag }) => buildCard(r, dataType, tag, isShared(r, dataType))).join('');
+    const wrap = document.getElementById(`${id}-wrap`);
+    if (wrap) wrap.innerHTML = sorted.map(({ record: r, tag }) => buildCard(r, dataType, tag, isShared(r, dataType))).join('');
   }
 }
 
