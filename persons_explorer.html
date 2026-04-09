@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Person Explorer — LLM Research Diary</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+    <style>
+        /* ── Layout ──────────────────────────────────────────────────────── */
+        .explorer-container { max-width: 1100px; margin: 2rem auto; padding: 0 20px; }
+
+        /* ── Page header ─────────────────────────────────────────────────── */
+        .page-header { text-align: center; border-bottom: 3px double #2c2c2c; margin-bottom: 2rem; padding-bottom: 1.5rem; }
+        .page-header h2 { font-family: Georgia, serif; font-size: 2.2rem; letter-spacing: 4px; text-transform: uppercase; margin: 0 0 0.5rem 0; }
+        .page-header .subtitle { font-family: Georgia, serif; font-style: italic; color: #555; font-size: 1rem; }
+        .dataset-meta { margin-top: 1rem; font-size: 0.85rem; color: #777; letter-spacing: 1px; text-transform: uppercase; }
+
+        /* ── Loading ─────────────────────────────────────────────────────── */
+        #loading-bar { display: none; text-align: center; padding: 2rem; font-family: Georgia, serif; font-style: italic; color: #888; border: 1px dashed #d3c9b1; background: #fdfaf3; margin-bottom: 1.5rem; }
+        #loading-status { font-family: Georgia, serif; font-size: 0.85rem; color: #aaa; text-align: center; margin-bottom: 1rem; min-height: 1.2em; }
+
+        /* ── Selection area ──────────────────────────────────────────────── */
+        .selection-area { background: #fdfaf3; border: 1px solid #d3c9b1; padding: 1rem 1.25rem 1.25rem; margin-bottom: 1.5rem; }
+        .selection-area-hdr { font-family: Georgia, serif; font-variant: small-caps; font-size: 0.82rem; letter-spacing: 0.05em; color: #888; margin-bottom: 0.75rem; }
+
+        /* ── Slots ───────────────────────────────────────────────────────── */
+        #slots { display: flex; flex-direction: column; gap: 0.55rem; }
+        .slot { display: flex; align-items: center; gap: 0.6rem; }
+        .slot-swatch { width: 14px; height: 14px; border-radius: 2px; flex-shrink: 0; }
+        .slot-inner { position: relative; flex: 1; }
+        .slot-inner input { width: 100%; padding: 0.45rem 0.75rem; font-size: 0.9rem; border: 1px solid #ccc; border-radius: 3px; font-family: Georgia, serif; box-sizing: border-box; background: #fff; }
+        .slot-inner input:focus { outline: none; border-color: #2c2c2c; }
+        .slot-filled-label { flex: 1; font-family: Georgia, serif; font-size: 0.88rem; color: #2c2c2c; padding: 0.4rem 0.6rem; background: #fff; border: 1px solid #d3c9b1; border-radius: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .slot-remove { font-size: 0.75rem; color: #bbb; cursor: pointer; padding: 0 4px; font-family: Georgia, serif; flex-shrink: 0; user-select: none; }
+        .slot-remove:hover { color: #c62828; }
+
+        /* ── Dropdown ────────────────────────────────────────────────────── */
+        .loc-dropdown { position: absolute; top: calc(100% + 2px); left: 0; right: 0; max-height: 280px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-top: none; z-index: 300; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .dd-item { padding: 0.38rem 0.8rem; font-size: 0.88rem; cursor: pointer; border-bottom: 1px solid #f5f5f5; display: flex; flex-direction: column; gap: 2px; font-family: Georgia, serif; }
+        .dd-item:hover, .dd-item.active { background: #f5f0e8; }
+        .dd-title { color: #2c2c2c; font-size: 0.87rem; }
+        .dd-meta  { color: #aaa; font-size: 0.74rem; font-style: italic; }
+        .dd-group-label { padding: 0.22rem 0.8rem; font-size: 0.71rem; text-transform: uppercase; letter-spacing: 0.06em; color: #bbb; background: #fafafa; font-family: Georgia, serif; border-bottom: 1px solid #f0f0f0; pointer-events: none; }
+
+        /* ── Pills ───────────────────────────────────────────────────────── */
+        #active-pills { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.75rem; }
+        .active-pill { display: inline-flex; align-items: center; gap: 5px; font-size: 0.78rem; font-family: Georgia, serif; padding: 0.25rem 0.6rem; border-radius: 2px; color: #fff; cursor: default; }
+        .active-pill .pill-x { cursor: pointer; opacity: 0.75; font-size: 0.85rem; line-height: 1; }
+        .active-pill .pill-x:hover { opacity: 1; }
+
+        /* ── Placeholder ─────────────────────────────────────────────────── */
+        #placeholder { text-align: center; padding: 4rem 1rem; font-family: Georgia, serif; color: #999; font-style: italic; border: 1px dashed #d3c9b1; background: #fdfaf3; }
+
+        /* ── Sections ────────────────────────────────────────────────────── */
+        .section-block  { margin-bottom: 3rem; }
+        .section-header { border-bottom: 1px solid #2c2c2c; margin-bottom: 1.25rem; padding-bottom: 0.4rem; display: flex; align-items: baseline; gap: 0.75rem; }
+        .section-header h3 { font-family: Georgia, serif; font-variant: small-caps; font-size: 1.3rem; letter-spacing: 2px; margin: 0; }
+        .section-number { font-family: Georgia, serif; font-style: italic; color: #999; font-size: 0.9rem; }
+        .section-note   { font-family: Georgia, serif; font-style: italic; font-size: 0.88rem; color: #666; margin-bottom: 1rem; }
+
+        /* ── Overview cards ──────────────────────────────────────────────── */
+        #overview-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.75rem; }
+        .overview-card { border: 1px solid #d3c9b1; overflow: hidden; }
+        .overview-card-hdr { padding: 0.4rem 0.75rem; font-family: Georgia, serif; font-size: 0.8rem; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .overview-card-body { padding: 0.6rem 0.75rem; background: #fdfaf3; }
+        .ov-row { display: flex; justify-content: space-between; font-family: Georgia, serif; font-size: 0.84rem; padding: 0.2rem 0; border-bottom: 1px solid #f0ebe0; color: #2c2c2c; }
+        .ov-row:last-child { border-bottom: none; }
+        .ov-key { color: #888; font-size: 0.78rem; flex-shrink: 0; margin-right: 0.5rem; }
+
+        /* ── Figure blocks ───────────────────────────────────────────────── */
+        .figure-block { margin: 1.25rem 0; background: #fdfaf3; border: 1px solid #d3c9b1; padding: 16px; }
+        .figure-caption { font-family: Georgia, serif; font-size: 0.82rem; font-style: italic; color: #666; margin-top: 10px; border-top: 1px solid #e0d8c8; padding-top: 8px; }
+        .figures-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 1.25rem 0; }
+        @media (max-width: 720px) { .figures-row { grid-template-columns: 1fr; } }
+        .chart-wrap { position: relative; width: 100%; }
+
+        /* ── Finding callout ─────────────────────────────────────────────── */
+        .finding { border-left: 3px solid #2c2c2c; padding: 0.6rem 1rem; margin: 1rem 0; background: #f5f0e8; font-family: Georgia, serif; font-size: 0.9rem; font-style: italic; color: #2c2c2c; line-height: 1.7; }
+
+        /* ── Legend ──────────────────────────────────────────────────────── */
+        .chart-legend { display: flex; flex-wrap: wrap; gap: 0.7rem 1.2rem; margin-bottom: 0.5rem; }
+        .chart-legend span { display: flex; align-items: center; gap: 5px; font-family: Georgia, serif; font-size: 0.8rem; color: #555; }
+        .legend-line { width: 24px; height: 3px; display: inline-block; flex-shrink: 0; }
+
+        /* ── Role cards ──────────────────────────────────────────────────── */
+        #role-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.75rem; }
+        .role-card { border: 1px solid #d3c9b1; overflow: hidden; }
+        .role-card-hdr { padding: 0.4rem 0.75rem; font-family: Georgia, serif; font-size: 0.8rem; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .role-card-body { padding: 0.6rem 0.75rem; background: #fdfaf3; }
+        .role-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.22rem 0; border-bottom: 1px solid #f0ebe0; font-family: Georgia, serif; font-size: 0.8rem; }
+        .role-row:last-child { border-bottom: none; }
+        .role-bar-wrap { width: 60px; height: 6px; background: #e8e0d0; border-radius: 3px; flex-shrink: 0; }
+        .role-bar { height: 6px; border-radius: 3px; }
+        .role-label { flex: 1; color: #444; }
+        .role-count { color: #aaa; font-size: 0.74rem; flex-shrink: 0; }
+
+        /* ── Ornament & misc ─────────────────────────────────────────────── */
+        .ornament { text-align: center; color: #bbb; font-size: 1.2rem; margin: 2.5rem 0 2rem; letter-spacing: 8px; }
+        .no-data { font-family: Georgia, serif; font-style: italic; color: #999; font-size: 0.88rem; padding: 0.5rem 0; }
+        #content { display: none; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>LLM Research Diary</h1>
+    <nav>
+        <a href="index.html">Reports</a>
+        <a href="analysis.html">Analysis</a>
+        <a href="portraits.html">Our Portrait Page</a>
+        <a href="experiments.html">Experiments</a>
+        <a href="people.html">Individuals</a>
+        <a href="locations.html">Locations</a>
+        <a href="locations_explorer.html">Location Explorer</a>
+        <a href="persons_explorer.html">Person Explorer</a>
+        <a href="articles.html">Articles</a>
+        <a href="connections_explorer.html">Connections</a>
+    </nav>
+</header>
+
+<main>
+<div class="explorer-container">
+
+    <div class="page-header">
+        <h2>Person Explorer</h2>
+        <span class="subtitle">Explore and compare up to ten individuals across the full record</span>
+        <div class="dataset-meta" id="header-meta">Loading dataset…</div>
+    </div>
+
+    <div id="loading-bar">Loading person data — this may take a moment…</div>
+    <div id="loading-status"></div>
+
+    <!-- Selection area -->
+    <div class="selection-area">
+        <div class="selection-area-hdr">Select persons to explore (up to 10)</div>
+        <div id="slots"></div>
+        <div id="active-pills"></div>
+    </div>
+
+    <div id="placeholder">
+        Search for a person above to begin. Add more to compare them side by side.
+    </div>
+
+    <div id="content">
+
+        <!-- I. Overview -->
+        <div class="section-block">
+            <div class="section-header">
+                <span class="section-number">I</span>
+                <h3>Overview</h3>
+            </div>
+            <div id="overview-cards"></div>
+            <div id="overview-finding" class="finding" style="margin-top:1rem"></div>
+        </div>
+
+        <div class="ornament">— ✦ —</div>
+
+        <!-- II. Mentions over time -->
+        <div class="section-block">
+            <div class="section-header">
+                <span class="section-number">II</span>
+                <h3>Mentions Over Time</h3>
+            </div>
+            <p class="section-note">Annual mention counts with rolling averages (top). Share of all annual person mentions (bottom).</p>
+            <div class="figure-block">
+                <div id="legend-mentions" class="chart-legend"></div>
+                <div class="chart-wrap" style="height:220px"><canvas id="ch-mentions"></canvas></div>
+                <div class="figure-caption">Annual mention counts with 5-year rolling average.</div>
+            </div>
+            <div class="figure-block">
+                <div id="legend-share" class="chart-legend"></div>
+                <div class="chart-wrap" style="height:200px"><canvas id="ch-share"></canvas></div>
+                <div class="figure-caption">Share of all annual person mentions. Selected persons shown with colour-coded lines.</div>
+            </div>
+        </div>
+
+        <div class="ornament">— ✦ —</div>
+
+        <!-- III. Relation breakdown -->
+        <div class="section-block">
+            <div class="section-header">
+                <span class="section-number">III</span>
+                <h3>Relation to Text</h3>
+            </div>
+            <p class="section-note">How each person is referenced across their mentions (left). Proportion of appearances as the article subject over time (right).</p>
+            <div class="figures-row">
+                <div class="figure-block">
+                    <div class="chart-wrap" style="height:260px"><canvas id="ch-relation"></canvas></div>
+                    <div class="figure-caption">Stacked count of relation types per person.</div>
+                </div>
+                <div class="figure-block">
+                    <div class="chart-wrap" style="height:260px"><canvas id="ch-rel-time"></canvas></div>
+                    <div class="figure-caption">Rolling share of mentions where relation = "subject".</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="ornament">— ✦ —</div>
+
+        <!-- IV. Roles -->
+        <div class="section-block">
+            <div class="section-header">
+                <span class="section-number">IV</span>
+                <h3>Roles &amp; Professions</h3>
+            </div>
+            <p class="section-note">Top recorded roles for each selected person, proportional to their total mentions.</p>
+            <div id="role-cards"></div>
+        </div>
+
+        <div class="ornament">— ✦ —</div>
+
+        <!-- V. Organisations -->
+        <div class="section-block">
+            <div class="section-header">
+                <span class="section-number">V</span>
+                <h3>Associated Organisations</h3>
+            </div>
+            <p class="section-note">Organisations most frequently linked to each person across their records.</p>
+            <div id="org-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0.75rem;"></div>
+        </div>
+
+        <div class="ornament">— ✦ —</div>
+
+        <!-- VI. Gender context -->
+        <div class="section-block">
+            <div class="section-header">
+                <span class="section-number">VI</span>
+                <h3>Gender Context</h3>
+            </div>
+            <p class="section-note">The grey dashed line shows the overall female share of all person mentions per year. Coloured lines show each selected person's individual share of all mentions.</p>
+            <div class="figure-block">
+                <div id="legend-gender" class="chart-legend"></div>
+                <div class="chart-wrap" style="height:240px"><canvas id="ch-gender"></canvas></div>
+                <div class="figure-caption">Female share of all person mentions (dashed) vs each selected person's share of all mentions (coloured).</div>
+            </div>
+        </div>
+
+        <div class="ornament">— ✦ —</div>
+
+        <!-- VII. Article context -->
+        <div class="section-block">
+            <div class="section-header">
+                <span class="section-number">VII</span>
+                <h3>Article Context</h3>
+            </div>
+            <p class="section-note">Articles in which each person appears most frequently (left). Depicted vs not depicted (right).</p>
+            <div class="figures-row">
+                <div>
+                    <p class="section-note" style="margin-top:0">Top articles by mention count</p>
+                    <div id="article-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0.75rem;"></div>
+                </div>
+                <div class="figure-block">
+                    <div class="chart-wrap" style="height:260px"><canvas id="ch-depicted"></canvas></div>
+                    <div class="figure-caption">Depicted in images vs not depicted.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="ornament">— ✦ —</div>
+
+        <!-- VIII. Co-mentioned -->
+        <div class="section-block">
+            <div class="section-header">
+                <span class="section-number">VIII</span>
+                <h3>Frequently Co-mentioned</h3>
+            </div>
+            <p class="section-note">Other persons appearing in the same source files as each selected person, ranked by co-occurrence count.</p>
+            <div id="co-mention-cards"></div>
+        </div>
+
+        <div class="ornament">— ✦ —</div>
+
+        <!-- IX. Debut -->
+        <div class="section-block">
+            <div class="section-header">
+                <span class="section-number">IX</span>
+                <h3>First Appearances Per Year</h3>
+            </div>
+            <p class="section-note">How many new persons enter the record each year, with cumulative total. Vertical markers show first appearance of each selected person.</p>
+            <div id="debut-finding" class="finding"></div>
+            <div class="figure-block">
+                <div class="chart-wrap" style="height:240px"><canvas id="ch-debut"></canvas></div>
+                <div class="figure-caption">Bars = new persons per year. Line = cumulative total (right axis). Coloured vertical markers = first appearance of each selected person.</div>
+            </div>
+        </div>
+
+    </div><!-- #content -->
+</div>
+</main>
+
+<footer>© LLM Research Diary</footer>
+<script src="js/persons_explorer.js"></script>
+</body>
+</html>
