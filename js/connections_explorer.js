@@ -612,22 +612,20 @@ function articleTitleOf(r) {
 }
 
 function computeSharedSets(allItems) {
-  // Count how many times each PRIMARY name appears across all connections
-  // (excluding the anchor itself — a name shared only with the anchor doesn't
-  // count; it has to appear in at least 2 distinct connection records).
-  const nameCounts = {};
-  allItems.forEach(({ record: r, dataType: dt }) => {
-    const n = nameOfRecord(r, dt);
-    if (n) nameCounts[n] = (nameCounts[n] || 0) + 1;
-  });
-  sharedNames = new Set(Object.keys(nameCounts).filter(k => nameCounts[k] > 1));
+  // ★ Shared name: a connection record's primary name fuzzy-matches the
+  // ANCHOR's own primary name. E.g. if you searched for "Miss Sutton", any
+  // other person record named "Sutton, Miss" in the results gets flagged.
+  // This is intentionally anchor-centric: it highlights recurrences of the
+  // thing you searched for, not arbitrary coincidences between results.
+  const anchorPrimaryName = nameOfRecord(anchor, anchorType);
+  sharedNames = anchorPrimaryName ? new Set([anchorPrimaryName]) : new Set();
+  // (sharedFlags does the fuzzy comparison per-record, so we just store the anchor name)
 
-  // The anchor article title (or primary name if anchor is an article) is
-  // what we compare connection records' article_title fields against.
-  const anchorArticleTitle = anchorType === 'article'
-    ? normalise(anchor.article_title || anchor.article_title || '')
-    : normalise(anchor.article_title || '');
-  // Store for use in sharedFlags
+  // ◆ Shared article: connection record's article_title matches the anchor's
+  // article title — means it was mentioned in the same article as the anchor.
+  const anchorArticleTitle = normalise(
+    anchorType === 'article' ? (anchor.article_title || '') : (anchor.article_title || '')
+  );
   sharedArticles = anchorArticleTitle ? new Set([anchorArticleTitle]) : new Set();
 }
 
@@ -674,9 +672,21 @@ function renderConnections() {
   const fn  = anchor.filename || '';
   const dpk = pageKey(anchor.date, anchor.page_number);
 
-  const directArticles  = dedup([...(DB.articlesByFile[fn]  || []), ...(DB.articlesByKey[dpk]  || [])]).filter(r => r !== anchor);
-  const directLocations = dedup([...(DB.locationsByFile[fn] || []), ...(DB.locationsByKey[dpk] || [])]).filter(r => anchorType !== 'location' || r !== anchor);
-  const directPersons   = dedup([...(DB.personsByFile[fn]   || []), ...(DB.personsByKey[dpk]   || [])]).filter(r => anchorType !== 'person'   || r !== anchor);
+  // Direct connections: same filename, OR same page+date but ONLY within the
+  // same file. We never pull in records from other files just because they
+  // share a date — that causes huge false-positive floods on popular issue dates.
+  function directRecords(byFile, byKey) {
+    const fromFile = byFile[fn] || [];
+    // page+date match restricted to records that also share the filename
+    const fromPage = fn
+      ? (byKey[dpk] || []).filter(r => (r.filename || '') === fn)
+      : (byKey[dpk] || []);
+    return dedup([...fromFile, ...fromPage]);
+  }
+
+  const directArticles  = directRecords(DB.articlesByFile,  DB.articlesByKey ).filter(r => r !== anchor);
+  const directLocations = directRecords(DB.locationsByFile, DB.locationsByKey).filter(r => anchorType !== 'location' || r !== anchor);
+  const directPersons   = directRecords(DB.personsByFile,   DB.personsByKey  ).filter(r => anchorType !== 'person'   || r !== anchor);
 
   const nearby = nearbyPages(2);
   const nearbyArticles = [], nearbyLocations = [], nearbyPersons = [];
@@ -690,9 +700,17 @@ function renderConnections() {
     const tag  = np.offset < 0
       ? `${Math.abs(np.offset)} page${Math.abs(np.offset) > 1 ? 's' : ''} before`
       : `${np.offset} page${np.offset > 1 ? 's' : ''} after`;
-    dedup([...(DB.articlesByFile[nfn]  || []), ...(DB.articlesByKey[nkey]  || [])]).filter(r => !seenA.has(r)).forEach(r => { nearbyArticles.push({ record: r, tag }); seenA.add(r); });
-    dedup([...(DB.locationsByFile[nfn] || []), ...(DB.locationsByKey[nkey] || [])]).filter(r => !seenL.has(r)).forEach(r => { nearbyLocations.push({ record: r, tag }); seenL.add(r); });
-    dedup([...(DB.personsByFile[nfn]   || []), ...(DB.personsByKey[nkey]   || [])]).filter(r => !seenP.has(r)).forEach(r => { nearbyPersons.push({ record: r, tag }); seenP.add(r); });
+    // Nearby: same filename of the neighbour page, or same page+date within that file
+    function nearbyRecords(byFile, byKey) {
+      const fromFile = byFile[nfn] || [];
+      const fromPage = nfn
+        ? (byKey[nkey] || []).filter(r => (r.filename || '') === nfn)
+        : (byKey[nkey] || []);
+      return dedup([...fromFile, ...fromPage]);
+    }
+    nearbyRecords(DB.articlesByFile,  DB.articlesByKey ).filter(r => !seenA.has(r)).forEach(r => { nearbyArticles.push({ record: r, tag }); seenA.add(r); });
+    nearbyRecords(DB.locationsByFile, DB.locationsByKey).filter(r => !seenL.has(r)).forEach(r => { nearbyLocations.push({ record: r, tag }); seenL.add(r); });
+    nearbyRecords(DB.personsByFile,   DB.personsByKey  ).filter(r => !seenP.has(r)).forEach(r => { nearbyPersons.push({ record: r, tag }); seenP.add(r); });
   });
 
   // Compute shared sets
