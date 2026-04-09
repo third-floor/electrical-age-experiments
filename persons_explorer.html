@@ -94,9 +94,28 @@
         .role-label { flex: 1; color: #444; }
         .role-count { color: #aaa; font-size: 0.74rem; flex-shrink: 0; }
 
+        /* ── Expandable table cards ──────────────────────────────────────── */
+        #role-cards, #org-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap: 0.75rem; }
+        .expand-card { border: 1px solid #d3c9b1; overflow: hidden; font-family: Georgia, serif; }
+        .expand-card-hdr { padding: 0.4rem 0.75rem; font-size: 0.8rem; color: #fff; display: flex; justify-content: space-between; align-items: center; }
+        .card-total { font-size: 0.72rem; opacity: 0.75; font-style: italic; white-space: nowrap; margin-left: 0.5rem; }
+        .expand-card-body { padding: 0; background: #fdfaf3; }
+        .expand-tbl { width: 100%; border-collapse: collapse; font-family: Georgia, serif; font-size: 0.82rem; }
+        .expand-tbl thead th { background: #f0ebe0; color: #555; padding: 0.3rem 0.65rem; text-align: left; font-weight: normal; font-variant: small-caps; font-size: 0.76rem; letter-spacing: 0.04em; border-bottom: 1px solid #d3c9b1; }
+        .expand-tbl td { padding: 0.3rem 0.65rem; border-bottom: 1px solid #f0ebe0; vertical-align: middle; }
+        .expand-tbl tr:last-child td { border-bottom: none; }
+        .expand-tbl tr:hover td { background: #f5f0e8; }
+        .tbl-count { text-align: right; color: #888; font-size: 0.78rem; white-space: nowrap; width: 1%; padding-left: 1rem; }
+        .expand-row { padding: 0.5rem 0.65rem; display: flex; gap: 0.5rem; flex-wrap: wrap; border-top: 1px solid #e8e0d0; background: #fdfaf3; }
+        .expand-tbl-btn { font-family: Georgia, serif; font-size: 0.78rem; font-style: italic; color: #555; background: #fff; border: 1px solid #d3c9b1; padding: 0.25rem 0.7rem; cursor: pointer; border-radius: 2px; }
+        .expand-tbl-btn:hover { background: #f5f0e8; border-color: #b0a898; color: #2c2c2c; }
+        .expand-tbl-all { color: #185FA5; border-color: #a8c4e0; }
+        .expand-tbl-all:hover { background: #e8f1fa; }
+        .expand-tbl-collapse { color: #999; }
+
         /* ── Ornament & misc ─────────────────────────────────────────────── */
         .ornament { text-align: center; color: #bbb; font-size: 1.2rem; margin: 2.5rem 0 2rem; letter-spacing: 8px; }
-        .no-data { font-family: Georgia, serif; font-style: italic; color: #999; font-size: 0.88rem; padding: 0.5rem 0; }
+        .no-data { font-family: Georgia, serif; font-style: italic; color: #999; font-size: 0.88rem; padding: 0.5rem 0.65rem; }
         #content { display: none; }
     </style>
 </head>
@@ -244,13 +263,11 @@
                 <h3>Article Context</h3>
             </div>
             <p class="section-note">Articles in which each person appears most frequently (left). Depicted vs not depicted (right).</p>
+            <p class="section-note" style="margin-top:0">Top articles by mention count</p>
+            <div id="article-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:0.75rem;margin-bottom:1.5rem;"></div>
             <div class="figures-row">
-                <div>
-                    <p class="section-note" style="margin-top:0">Top articles by mention count</p>
-                    <div id="article-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0.75rem;"></div>
-                </div>
-                <div class="figure-block">
-                    <div class="chart-wrap" style="height:260px"><canvas id="ch-depicted"></canvas></div>
+                <div class="figure-block" style="grid-column:1/-1">
+                    <div class="chart-wrap" style="height:240px"><canvas id="ch-depicted"></canvas></div>
                     <div class="figure-caption">Depicted in images vs not depicted.</div>
                 </div>
             </div>
@@ -265,7 +282,7 @@
                 <h3>Frequently Co-mentioned</h3>
             </div>
             <p class="section-note">Other persons appearing in the same source files as each selected person, ranked by co-occurrence count.</p>
-            <div id="co-mention-cards"></div>
+            <div id="co-mention-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:0.75rem;"></div>
         </div>
 
         <div class="ornament">— ✦ —</div>
