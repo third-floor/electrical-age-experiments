@@ -114,6 +114,26 @@
         .ornament { text-align: center; color: #bbb; font-size: 1.2rem; margin: 2rem 0 1.75rem; letter-spacing: 8px; }
         #content { display: none; }
 
+        /* ── Disambiguation panel ────────────────────────────────────────── */
+        #disambig-panel { display: none; margin-bottom: 1.5rem; border: 1px solid #d3c9b1; background: #fdfaf3; }
+        .disambig-header { padding: 0.85rem 1.1rem; border-bottom: 1px solid #d3c9b1; background: #f5f0e8; }
+        .disambig-title { font-family: Georgia, serif; font-size: 1rem; font-weight: bold; color: #2c2c2c; display: block; margin-bottom: 0.25rem; }
+        .disambig-sub   { font-family: Georgia, serif; font-size: 0.82rem; font-style: italic; color: #777; }
+        .disambig-table-wrap { overflow-x: auto; }
+        .disambig-table { width: 100%; border-collapse: collapse; font-family: Georgia, serif; font-size: 0.83rem; }
+        .disambig-table th { background: #2c2c2c; color: #fff; padding: 0.38rem 0.7rem; text-align: left; font-weight: normal; font-variant: small-caps; letter-spacing: 0.05em; white-space: nowrap; }
+        .disambig-table td { padding: 0.32rem 0.7rem; border-bottom: 1px solid #e8e0d0; vertical-align: top; }
+        .disambig-table tr:nth-child(even) td { background: #faf7f0; }
+        .disambig-row { cursor: pointer; }
+        .disambig-row:hover td { background: #f0ebe0 !important; }
+        .disambig-pick-btn { padding: 0.25rem 0.65rem; font-family: Georgia, serif; font-size: 0.78rem; background: #2c2c2c; color: #fff; border: none; border-radius: 2px; cursor: pointer; white-space: nowrap; }
+        .disambig-pick-btn:hover { background: #444; }
+
+        /* ── Expand button ───────────────────────────────────────────────── */
+        .expand-btn-wrap { margin-top: 0.75rem; text-align: center; }
+        .expand-btn { font-family: Georgia, serif; font-size: 0.84rem; font-style: italic; color: #555; background: #fdfaf3; border: 1px solid #d3c9b1; padding: 0.4rem 1.2rem; cursor: pointer; border-radius: 2px; }
+        .expand-btn:hover { background: #f5f0e8; border-color: #b0a898; color: #2c2c2c; }
+
         @media (max-width: 600px) {
             .cards-grid { grid-template-columns: 1fr; }
             .search-row { flex-direction: column; }
