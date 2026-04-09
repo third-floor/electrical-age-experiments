@@ -1,67 +1,34 @@
-// connections_explorer.js
-// Loads articles, locations and persons JSON files, then finds connections
-// between records that share the same filename OR same page_number + date.
-// Nearby-page connections (±2 pages) are also surfaced and flagged.
-// Supports searching by article title, location name, or person name.
-// Supports card and table display modes.
-// Highlights records whose name appears in multiple connections.
+// connections_explorer.js — v3
+// Improvements in this version:
+//  1. Virtual scrolling on disambiguation table (only renders visible rows)
+//  2. Lazy-load JSON files (loads on first search, by year group)
+//  3. Unified search across all three types simultaneously
+//  4. Smarter shared-name detection (normalised, fuzzy, title-stripped)
+//  5. Relevance scoring (multi-signal, sorts connections by strength)
+//  6. Click any result card to make it the new anchor
+//  7. Shared article-title highlight (separate colour from shared name)
 
 // ── Data paths ────────────────────────────────────────────────────────────────
 
 const BASE = 'assets/data_date/';
 
-const ARTICLE_FILES = [
-  'articlesvol1.json','articlesvol2.json',
-  'articles1936v1.json','articles1937v1.json','articles1938v1.json','articles1939v1.json',
-  'articles1940v1.json','articles1941v1.json','articles1942v1.json','articles1943v1.json',
-  'articles1944v1.json','articles1945v1.json','articles1946v1.json','articles1947v1.json',
-  'articles1948v1.json','articles1949v1.json','articles1950v1.json','articles1951v1.json',
-  'articles1952v1.json','articles1953v1.json','articles1954v1.json','articles1955v1.json',
-  'articles1956v1.json','articles1957v1.json','articles1958v1.json','articles1959v1.json',
-  'articles1960v1.json','articles1961v1.json','articles1962v1.json','articles1963v1.json',
-  'articles1964v1.json','articles1965v1.json','articles1966v1.json','articles1967v1.json',
-  'articles1968v1.json','articles1969v1.json','articles1970v1.json','articles1971v1.json',
-  'articles1972v1.json','articles1973v1.json','articles1974v1.json','articles1975v1.json',
-  'articles1976v1.json','articles1977v1.json','articles1978v1.json','articles1979v1.json',
-  'articles1980v1.json','articles1981v1.json','articles1982v1.json','articles1983v1.json',
-  'articles1984v1.json','articles1985v1.json','articles1986v1.json',
-].map(f => BASE + f);
+// Files grouped so we can lazy-load. Pre-1936 vols always loaded immediately
+// (they're few). Year files are loaded in batches on first search.
+const VOL_FILES = {
+  articles:  ['articlesvol1.json',  'articlesvol2.json' ],
+  locations: ['locationsvol1.json', 'locationsvol2.json'],
+  persons:   ['personsvol1.json',   'personsvol2.json'  ],
+};
 
-const LOCATION_FILES = [
-  'locationsvol1.json','locationsvol2.json',
-  'locations1936v1.json','locations1937v1.json','locations1938v1.json','locations1939v1.json',
-  'locations1940v1.json','locations1941v1.json','locations1942v1.json','locations1943v1.json',
-  'locations1944v1.json','locations1945v1.json','locations1946v1.json','locations1947v1.json',
-  'locations1948v1.json','locations1949v1.json','locations1950v1.json','locations1951v1.json',
-  'locations1952v1.json','locations1953v1.json','locations1954v1.json','locations1955v1.json',
-  'locations1956v1.json','locations1957v1.json','locations1958v1.json','locations1959v1.json',
-  'locations1960v1.json','locations1961v1.json','locations1962v1.json','locations1963v1.json',
-  'locations1964v1.json','locations1965v1.json','locations1966v1.json','locations1967v1.json',
-  'locations1968v1.json','locations1969v1.json','locations1970v1.json','locations1971v1.json',
-  'locations1972v1.json','locations1973v1.json','locations1974v1.json','locations1975v1.json',
-  'locations1976v1.json','locations1977v1.json','locations1978v1.json','locations1979v1.json',
-  'locations1980v1.json','locations1981v1.json','locations1982v1.json','locations1983v1.json',
-  'locations1984v1.json','locations1985v1.json','locations1986v1.json',
-].map(f => BASE + f);
+const YEARS = Array.from({ length: 51 }, (_, i) => 1936 + i); // 1936-1986
 
-const PERSON_FILES = [
-  'personsvol1.json','personsvol2.json',
-  'persons1936v1.json','persons1937v1.json','persons1938v1.json','persons1939v1.json',
-  'persons1940v1.json','persons1941v1.json','persons1942v1.json','persons1943v1.json',
-  'persons1944v1.json','persons1945v1.json','persons1946v1.json','persons1947v1.json',
-  'persons1948v1.json','persons1949v1.json','persons1950v1.json','persons1951v1.json',
-  'persons1952v1.json','persons1953v1.json','persons1954v1.json','persons1955v1.json',
-  'persons1956v1.json','persons1957v1.json','persons1958v1.json','persons1959v1.json',
-  'persons1960v1.json','persons1961v1.json','persons1962v1.json','persons1963v1.json',
-  'persons1964v1.json','persons1965v1.json','persons1966v1.json','persons1967v1.json',
-  'persons1968v1.json','persons1969v1.json','persons1970v1.json','persons1971v1.json',
-  'persons1972v1.json','persons1973v1.json','persons1974v1.json','persons1975v1.json',
-  'persons1976v1.json','persons1977v1.json','persons1978v1.json','persons1979v1.json',
-  'persons1980v1.json','persons1981v1.json','persons1982v1.json','persons1983v1.json',
-  'persons1984v1.json','persons1985v1.json','persons1986v1.json',
-].map(f => BASE + f);
+// Track which year files have been fetched
+const loadedYears   = new Set();
+let   volsLoaded    = false;
+let   allYearsLoaded = false;
+let   loadInProgress = false;
 
-// ── State ─────────────────────────────────────────────────────────────────────
+// ── DB ────────────────────────────────────────────────────────────────────────
 
 const DB = {
   articles:  [],
@@ -74,19 +41,54 @@ const DB = {
   personsByFile:   {},
   personsByKey:    {},
   pageRegistry:    [],
+  pageRegistryBuilt: false,
 };
 
-let articleIndex  = [];
-let locationIndex = [];
-let personIndex   = [];
+// Unified search index: one flat array across all types
+// Each entry: { label, labelNorm, type, subLabel, record }
+let unifiedIndex = [];
 
-let anchor     = null;
-let anchorType = null;
-let viewMode   = 'card';
+// ── State ─────────────────────────────────────────────────────────────────────
 
-let sharedArticleTitles = new Set();
-let sharedLocationNames = new Set();
-let sharedPersonNames   = new Set();
+let anchor          = null;
+let anchorType      = null;
+let viewMode        = 'card';
+let expandedSections = new Set();
+
+// Shared-name sets, computed per render
+let sharedNames       = new Set(); // normalised names shared across connections
+let sharedArticles    = new Set(); // normalised article titles shared across connections
+const INITIAL_SHOW    = 10;
+
+// ── Text normalisation ────────────────────────────────────────────────────────
+// Strips titles (Miss, Mr, Dr, …), punctuation, extra spaces; lowercases.
+// Used for fuzzy matching — we never store the normalised form permanently.
+
+const TITLE_RE = /^(mr\.?|mrs\.?|ms\.?|miss\.?|dr\.?|prof\.?|rev\.?|sir\.?|lady\.?|lord\.?|the\s+)/i;
+
+function normalise(s) {
+  if (!s) return '';
+  return s
+    .toLowerCase()
+    .replace(TITLE_RE, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Rough similarity: returns true if two normalised strings are likely the same
+// person/place. Uses token-overlap (Jaccard ≥ 0.5) as the fuzzy measure.
+function fuzzyMatch(a, b) {
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const ta = new Set(a.split(' ').filter(Boolean));
+  const tb = new Set(b.split(' ').filter(Boolean));
+  if (!ta.size || !tb.size) return false;
+  let inter = 0;
+  ta.forEach(t => { if (tb.has(t)) inter++; });
+  const union = ta.size + tb.size - inter;
+  return inter / union >= 0.5;
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -94,13 +96,17 @@ function cleanJSON(text) {
   return text.replace(/:\s*NaN\s*([,\}])/g, ': null$1');
 }
 
-function loadFile(url) {
-  return fetch(url).then(r => r.text()).then(t => JSON.parse(cleanJSON(t))).catch(() => []);
+async function fetchFile(url) {
+  try {
+    const r = await fetch(url);
+    const t = await r.text();
+    return JSON.parse(cleanJSON(t));
+  } catch { return []; }
 }
 
 function pageKey(date, page) { return `${date || ''}|${page || ''}`; }
 
-function buildIndex(records, byFile, byKey) {
+function addToIndex(records, byFile, byKey) {
   records.forEach(r => {
     const fn = r.filename || '';
     if (fn) { if (!byFile[fn]) byFile[fn] = []; byFile[fn].push(r); }
@@ -109,7 +115,16 @@ function buildIndex(records, byFile, byKey) {
   });
 }
 
+function dedup(arr) {
+  const seen = new Set();
+  return arr.filter(r => { if (seen.has(r)) return false; seen.add(r); return true; });
+}
+
 function buildPageRegistry() {
+  if (DB.pageRegistryBuilt) {
+    // Rebuild from scratch since we may have new records
+    DB.pageRegistry = [];
+  }
   const seen = new Set();
   [...DB.articles, ...DB.locations, ...DB.persons].forEach(r => {
     const fn = r.filename || '', pg = parseInt(r.page_number, 10), dt = r.date || '';
@@ -122,11 +137,7 @@ function buildPageRegistry() {
     if (a.filename < b.filename) return -1; if (a.filename > b.filename) return 1;
     return a.page - b.page;
   });
-}
-
-function dedup(arr) {
-  const seen = new Set();
-  return arr.filter(r => { if (seen.has(r)) return false; seen.add(r); return true; });
+  DB.pageRegistryBuilt = true;
 }
 
 function nearbyPages(radius = 2) {
@@ -144,110 +155,186 @@ function nearbyPages(radius = 2) {
   return results;
 }
 
-// ── Search index construction ─────────────────────────────────────────────────
+// ── Lazy loading ──────────────────────────────────────────────────────────────
 
-function buildSearchIndexes() {
-  // Deduplicate by (name + filename + page) so the same physical mention isn't
-  // listed twice, but different occurrences of the same name across different
-  // pages/files each get their own dropdown entry.
-
-  const seenA = new Set();
-  DB.articles.forEach(r => {
-    const t   = (r.article_title || '').trim();
-    const key = `${t}||${r.filename || ''}||${r.page_number || ''}`;
-    if (!t || seenA.has(key)) return; seenA.add(key);
-    articleIndex.push({
-      label:    t,
-      subLabel: [r.date, r.volume_issue, r.page_number ? `p.${r.page_number}` : ''].filter(Boolean).join(' · '),
-      record:   r,
-    });
+async function ensureVolsLoaded() {
+  if (volsLoaded) return;
+  const sets = await Promise.all(['articles','locations','persons'].map(async type => {
+    const records = (await Promise.all(VOL_FILES[type].map(f => fetchFile(BASE + f)))).flat();
+    return { type, records };
+  }));
+  sets.forEach(({ type, records }) => {
+    DB[type].push(...records);
+    addToIndex(records, DB[`${type}sByFile`], DB[`${type}sByKey`]);
+    addToUnifiedIndex(records, type);
   });
-  articleIndex.sort((a, b) => a.label.localeCompare(b.label) || a.subLabel.localeCompare(b.subLabel));
-
-  const seenL = new Set();
-  DB.locations.forEach(r => {
-    const t   = (r.location_entry || '').trim();
-    const key = `${t}||${r.filename || ''}||${r.page_number || ''}`;
-    if (!t || seenL.has(key)) return; seenL.add(key);
-    locationIndex.push({
-      label:    t,
-      subLabel: [r.location_standardised, r.date, r.page_number ? `p.${r.page_number}` : ''].filter(Boolean).join(' · '),
-      record:   r,
-    });
-  });
-  locationIndex.sort((a, b) => a.label.localeCompare(b.label) || a.subLabel.localeCompare(b.subLabel));
-
-  const seenP = new Set();
-  DB.persons.forEach(r => {
-    const t   = (r.standardised_name || r.person_entry || '').trim();
-    const key = `${t}||${r.filename || ''}||${r.page_number || ''}`;
-    if (!t || seenP.has(key)) return; seenP.add(key);
-    personIndex.push({
-      label:    t,
-      subLabel: [r.role, r.associated_organisation, r.date, r.page_number ? `p.${r.page_number}` : ''].filter(Boolean).join(' · '),
-      record:   r,
-    });
-  });
-  personIndex.sort((a, b) => a.label.localeCompare(b.label) || a.subLabel.localeCompare(b.subLabel));
+  buildPageRegistry();
+  volsLoaded = true;
 }
 
-function getMatches(q, index) {
-  if (!q || q.length < 2) return { sw: [], inc: [] };
-  const ql = q.toLowerCase();
-  return {
-    sw:  index.filter(e =>  e.label.toLowerCase().startsWith(ql)).slice(0, 50),
-    inc: index.filter(e => !e.label.toLowerCase().startsWith(ql) && e.label.toLowerCase().includes(ql)).slice(0, 50),
-  };
+async function ensureAllYearsLoaded(progressCb) {
+  if (allYearsLoaded) return;
+  if (loadInProgress) return;
+  loadInProgress = true;
+
+  const unloaded = YEARS.filter(y => !loadedYears.has(y));
+  let done = 0;
+  // Load in small concurrent batches to avoid flooding
+  const BATCH = 8;
+  for (let i = 0; i < unloaded.length; i += BATCH) {
+    const batch = unloaded.slice(i, i + BATCH);
+    await Promise.all(batch.map(async year => {
+      const sets = await Promise.all(['articles','locations','persons'].map(async type => {
+        const records = await fetchFile(`${BASE}${type}${year}v1.json`);
+        return { type, records };
+      }));
+      sets.forEach(({ type, records }) => {
+        DB[type].push(...records);
+        addToIndex(records, DB[`${type}sByFile`], DB[`${type}sByKey`]);
+        addToUnifiedIndex(records, type);
+      });
+      loadedYears.add(year);
+      done++;
+    }));
+    if (progressCb) progressCb(done, unloaded.length);
+  }
+
+  buildPageRegistry();
+  unifiedIndex.sort((a, b) => a.label.localeCompare(b.label));
+  allYearsLoaded = true;
+  loadInProgress = false;
+
+  // Update dataset meta
+  document.getElementById('dataset-meta').textContent =
+    `${DB.articles.length.toLocaleString()} articles · ${DB.locations.length.toLocaleString()} locations · ${DB.persons.length.toLocaleString()} persons`;
+}
+
+// ── Unified search index ──────────────────────────────────────────────────────
+
+function recordLabel(r, type) {
+  if (type === 'article')  return (r.article_title  || '').trim();
+  if (type === 'location') return (r.location_entry  || '').trim();
+  return (r.standardised_name || r.person_entry || '').trim();
+}
+
+function recordSubLabel(r, type) {
+  if (type === 'article')
+    return [r.date, r.volume_issue, r.page_number ? `p.${r.page_number}` : ''].filter(Boolean).join(' · ');
+  if (type === 'location')
+    return [r.location_standardised, r.date, r.page_number ? `p.${r.page_number}` : ''].filter(Boolean).join(' · ');
+  return [r.role, r.associated_organisation, r.date, r.page_number ? `p.${r.page_number}` : ''].filter(Boolean).join(' · ');
+}
+
+const _indexSeen = new Set();
+
+function addToUnifiedIndex(records, type) {
+  records.forEach(r => {
+    const label = recordLabel(r, type);
+    const key   = `${type}||${label}||${r.filename || ''}||${r.page_number || ''}`;
+    if (!label || _indexSeen.has(key)) return;
+    _indexSeen.add(key);
+    unifiedIndex.push({
+      label,
+      labelNorm: normalise(label),
+      type,
+      subLabel:  recordSubLabel(r, type),
+      record:    r,
+    });
+  });
+}
+
+function getMatches(q) {
+  if (!q || q.length < 2) return [];
+  const ql   = q.toLowerCase();
+  const qn   = normalise(q);
+  const sw   = []; // starts-with
+  const inc  = []; // contains but not starts-with
+
+  unifiedIndex.forEach(e => {
+    const ll = e.label.toLowerCase();
+    if      (ll.startsWith(ql))               sw.push(e);
+    else if (ll.includes(ql))                 inc.push(e);
+    else if (e.labelNorm.startsWith(qn))      sw.push(e);
+    else if (e.labelNorm.includes(qn))        inc.push(e);
+  });
+
+  return [...sw.slice(0, 80), ...inc.slice(0, 40)];
 }
 
 // ── Dropdown ──────────────────────────────────────────────────────────────────
 
-function attachDropdown() {
-  const input    = document.getElementById('conn-search');
-  const dd       = document.getElementById('conn-dd');
-  const typesSel = document.getElementById('search-type');
-  let active     = -1;
+const TYPE_COLOURS = { article: '#1565c0', location: '#136348', person: '#4527a0' };
 
-  function currentIndex() {
-    const t = typesSel.value;
-    return t === 'location' ? locationIndex : t === 'person' ? personIndex : articleIndex;
-  }
+function attachDropdown() {
+  const input = document.getElementById('conn-search');
+  const dd    = document.getElementById('conn-dd');
+  let active  = -1;
+  let ddEntries = []; // current visible entries (for keyboard nav)
+
   function items() { return [...dd.querySelectorAll('.dd-item')]; }
 
-  function show(q) {
-    const type = typesSel.value;
-    const { sw, inc } = getMatches(q, currentIndex());
-    dd.innerHTML = ''; active = -1;
-    if (!sw.length && !inc.length) { dd.style.display = 'none'; return; }
+  async function show(q) {
+    if (!q || q.length < 2) { dd.style.display = 'none'; return; }
+
+    // If we don't have all data yet, show spinner inline and kick off load
+    if (!allYearsLoaded) {
+      showLoadingInDD();
+      await ensureAllYearsLoaded(updateDDProgress);
+    }
+
+    const matches = getMatches(q);
+    dd.innerHTML = ''; active = -1; ddEntries = matches;
+
+    if (!matches.length) { dd.style.display = 'none'; return; }
+
+    // Group into starts-with vs contains, and by type within each
+    const ql = q.toLowerCase();
+    const sw  = matches.filter(e => e.label.toLowerCase().startsWith(ql) || e.labelNorm.startsWith(normalise(q)));
+    const inc = matches.filter(e => !sw.includes(e));
 
     function addGroup(label) {
-      const div = document.createElement('div'); div.className = 'dd-group-label'; div.textContent = label; dd.appendChild(div);
-    }
-    function addItem(entry) {
-      const div = document.createElement('div'); div.className = 'dd-item';
-      div.innerHTML = `<span class="dd-title">${entry.label}</span><span class="dd-meta">${entry.subLabel}</span>`;
-      div.addEventListener('mousedown', e => { e.preventDefault(); pickAnchor(entry.record, type); });
+      const div = document.createElement('div');
+      div.className = 'dd-group-label';
+      div.textContent = label;
       dd.appendChild(div);
     }
-    if (sw.length)  { if (inc.length) addGroup(`Starting with "${q}"`); sw.forEach(addItem); }
-    if (inc.length) { if (sw.length)  addGroup(`Also containing "${q}"`); inc.forEach(addItem); }
+
+    function addItem(e, i) {
+      const div = document.createElement('div');
+      div.className = 'dd-item';
+      div.dataset.idx = i;
+      const dot = `<span class="dd-type-dot" style="background:${TYPE_COLOURS[e.type]}"></span>`;
+      div.innerHTML = `${dot}<span class="dd-title">${e.label}</span><span class="dd-meta">${e.subLabel}</span>`;
+      div.addEventListener('mousedown', ev => { ev.preventDefault(); pickAnchor(e.record, e.type, q); });
+      dd.appendChild(div);
+    }
+
+    let i = 0;
+    if (sw.length)  { if (inc.length) addGroup(`Best matches`); sw.forEach(e  => addItem(e, i++)); }
+    if (inc.length) { if (sw.length)  addGroup(`Also contains "${q}"`); inc.forEach(e => addItem(e, i++)); }
+
     dd.style.display = 'block';
   }
 
-  input.addEventListener('input',  () => show(input.value));
+  function showLoadingInDD() {
+    dd.innerHTML = '<div class="dd-loading">Loading data… <span id="dd-prog"></span></div>';
+    dd.style.display = 'block';
+  }
+  function updateDDProgress(done, total) {
+    const el = document.getElementById('dd-prog');
+    if (el) el.textContent = `${Math.round(done/total*100)}%`;
+  }
+
+  let debounceTimer;
+  input.addEventListener('input',  () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(() => show(input.value), 120); });
   input.addEventListener('focus',  () => { if (input.value.length >= 2) show(input.value); });
-  input.addEventListener('blur',   () => setTimeout(() => { dd.style.display = 'none'; }, 150));
+  input.addEventListener('blur',   () => setTimeout(() => { dd.style.display = 'none'; }, 160));
   input.addEventListener('keydown', e => {
     const its = items();
-    if      (e.key === 'ArrowDown')              { active = Math.min(active + 1, its.length - 1); its.forEach((el, i) => el.classList.toggle('active', i === active)); }
-    else if (e.key === 'ArrowUp')                { active = Math.max(active - 1, 0); its.forEach((el, i) => el.classList.toggle('active', i === active)); }
-    else if (e.key === 'Enter' && active >= 0)   { its[active].dispatchEvent(new MouseEvent('mousedown')); }
-    else if (e.key === 'Escape')                 { dd.style.display = 'none'; }
-  });
-  typesSel.addEventListener('change', () => {
-    const ph = { article: 'Type an article title…', location: 'Type a location name…', person: 'Type a person name…' };
-    input.placeholder = ph[typesSel.value] || 'Search…';
-    input.value = ''; dd.style.display = 'none';
+    if      (e.key === 'ArrowDown') { e.preventDefault(); active = Math.min(active + 1, its.length - 1); its.forEach((el, i) => el.classList.toggle('active', i === active)); }
+    else if (e.key === 'ArrowUp')   { e.preventDefault(); active = Math.max(active - 1, 0); its.forEach((el, i) => el.classList.toggle('active', i === active)); }
+    else if (e.key === 'Enter' && active >= 0) { its[active].dispatchEvent(new MouseEvent('mousedown')); }
+    else if (e.key === 'Escape') { dd.style.display = 'none'; input.blur(); }
   });
 }
 
@@ -265,12 +352,11 @@ function attachViewToggle() {
 
 // ── Anchor selection & disambiguation ─────────────────────────────────────────
 
-function pickAnchor(record, type) {
-  const label = type === 'article'  ? (record.article_title  || '')
-              : type === 'location' ? (record.location_entry  || '')
-              :                       (record.standardised_name || record.person_entry || '');
-
-  const idx   = type === 'article' ? articleIndex : type === 'location' ? locationIndex : personIndex;
+function pickAnchor(record, type, query) {
+  const label = recordLabel(record, type);
+  const idx   = type === 'article' ? unifiedIndex.filter(e => e.type === 'article')
+              : type === 'location' ? unifiedIndex.filter(e => e.type === 'location')
+              : unifiedIndex.filter(e => e.type === 'person');
   const dupes = idx.filter(e => e.label === label);
 
   document.getElementById('conn-search').value     = label;
@@ -288,9 +374,22 @@ function setAnchor(record, type) {
   expandedSections.clear();
   hideDisambiguation();
   renderConnections();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+// ── Disambiguation (with virtual scrolling) ───────────────────────────────────
+
+const DISAMBIG_ROW_H = 36;  // px, approximate rendered row height
+const DISAMBIG_BUFFER = 5;  // rows rendered above/below viewport
+
+let _disambigEntries = [];
+let _disambigType    = '';
+let _vsScrollTop     = 0;
+
 function showDisambiguation(entries, type, name) {
+  _disambigEntries = entries;
+  _disambigType    = type;
+
   document.getElementById('placeholder').style.display = 'none';
   document.getElementById('content').style.display     = 'none';
 
@@ -309,41 +408,69 @@ function showDisambiguation(entries, type, name) {
     ? ['Location', 'Standardised', 'Article', 'Page', 'Date', 'Vol / Issue', 'File']
     : ['Name', 'As appears', 'Role', 'Organisation', 'Article', 'Page', 'Date', 'Vol / Issue', 'File'];
 
-  function rowCells(e) {
-    const r = e.record;
+  const viewportH = Math.min(400, entries.length * DISAMBIG_ROW_H);
+  const totalH    = entries.length * DISAMBIG_ROW_H;
+
+  panel.innerHTML = `
+    <div class="disambig-header">
+      <span class="disambig-title">Multiple matches for <em>${name}</em></span>
+      <span class="disambig-sub">${entries.length} ${typeLabel} records — click a row to explore it</span>
+    </div>
+    <div class="disambig-table-wrap" id="disambig-scroll" style="height:${viewportH}px;overflow-y:auto;position:relative;">
+      <table class="disambig-table" style="width:100%;border-collapse:collapse;">
+        <thead id="disambig-thead"><tr>${cols.map(c => `<th>${c}</th>`).join('')}<th></th></tr></thead>
+        <tbody id="disambig-tbody" style="position:relative;"></tbody>
+      </table>
+      <div id="disambig-spacer" style="height:${totalH}px;position:absolute;top:0;left:0;width:1px;pointer-events:none;"></div>
+    </div>`;
+
+  panel.style.display = 'block';
+
+  const scrollEl = document.getElementById('disambig-scroll');
+  _vsScrollTop   = 0;
+  renderDisambigRows(scrollEl, 0);
+
+  scrollEl.addEventListener('scroll', () => {
+    renderDisambigRows(scrollEl, scrollEl.scrollTop);
+  });
+}
+
+function renderDisambigRows(scrollEl, scrollTop) {
+  const entries   = _disambigEntries;
+  const type      = _disambigType;
+  const viewportH = scrollEl.clientHeight;
+  const firstRow  = Math.max(0, Math.floor(scrollTop / DISAMBIG_ROW_H) - DISAMBIG_BUFFER);
+  const lastRow   = Math.min(entries.length - 1, Math.ceil((scrollTop + viewportH) / DISAMBIG_ROW_H) + DISAMBIG_BUFFER);
+
+  const tbody  = document.getElementById('disambig-tbody');
+  if (!tbody) return;
+
+  // Spacer rows above and below rendered slice
+  const topH    = firstRow * DISAMBIG_ROW_H;
+  const bottomH = (entries.length - lastRow - 1) * DISAMBIG_ROW_H;
+
+  function rowCells(r) {
     if (type === 'article')  return [r.article_title, r.article_type, r.page_number, r.date, r.volume_issue, r.filename];
     if (type === 'location') return [r.location_entry, r.location_standardised, r.article_title, r.page_number, r.date, r.volume_issue, r.filename];
     return [r.standardised_name || r.person_entry, r.person_entry, r.role, r.associated_organisation, r.article_title, r.page_number, r.date, r.volume_issue, r.filename];
   }
 
-  const rows = entries.map((e, i) => `
-    <tr class="disambig-row" data-idx="${i}">
-      ${rowCells(e).map(v => `<td>${v || ''}</td>`).join('')}
+  let html = `<tr style="height:${topH}px"></tr>`;
+  for (let i = firstRow; i <= lastRow; i++) {
+    const e = entries[i];
+    html += `<tr class="disambig-row" data-idx="${i}" style="height:${DISAMBIG_ROW_H}px;cursor:pointer;">
+      ${rowCells(e.record).map(v => `<td>${v || ''}</td>`).join('')}
       <td><button class="disambig-pick-btn" data-idx="${i}">Select</button></td>
-    </tr>`).join('');
+    </tr>`;
+  }
+  html += `<tr style="height:${bottomH}px"></tr>`;
+  tbody.innerHTML = html;
 
-  panel.innerHTML = `
-    <div class="disambig-header">
-      <span class="disambig-title">Multiple matches for <em>${name}</em></span>
-      <span class="disambig-sub">${entries.length} ${typeLabel} records found — select the one you want to explore</span>
-    </div>
-    <div class="disambig-table-wrap">
-      <table class="disambig-table">
-        <thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}<th></th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>`;
-
-  panel.style.display = 'block';
-
-  panel.querySelectorAll('.disambig-pick-btn').forEach(btn => {
-    btn.addEventListener('click', () => setAnchor(entries[+btn.dataset.idx].record, type));
+  tbody.querySelectorAll('.disambig-pick-btn').forEach(btn => {
+    btn.addEventListener('click', ev => { ev.stopPropagation(); setAnchor(entries[+btn.dataset.idx].record, type); });
   });
-  panel.querySelectorAll('.disambig-row').forEach(row => {
-    row.addEventListener('click', e => {
-      if (e.target.tagName === 'BUTTON') return;
-      setAnchor(entries[+row.dataset.idx].record, type);
-    });
+  tbody.querySelectorAll('.disambig-row').forEach(row => {
+    row.addEventListener('click', e => { if (e.target.tagName === 'BUTTON') return; setAnchor(entries[+row.dataset.idx].record, type); });
   });
 }
 
@@ -352,34 +479,110 @@ function hideDisambiguation() {
   if (panel) panel.style.display = 'none';
 }
 
-// ── Shared-name computation ───────────────────────────────────────────────────
+// ── Relevance scoring ─────────────────────────────────────────────────────────
+// Score each connection record against the anchor. Higher = more signals shared.
+// Signals (cumulative):
+//   +4  same filename
+//   +3  same page_number + date
+//   +2  same article_title (exact, normalised)
+//   +1  article_title fuzzy match
+//   +2  same standardised location / person name (exact normalised)
+//   +1  location / person name fuzzy match
+//   +0.5 same volume_issue
+//   -1  nearby page (not direct) — base score for proximity-only connections
 
-function nameOf(r, dataType) {
-  if (dataType === 'article')  return (r.article_title  || '').trim();
-  if (dataType === 'location') return (r.location_entry  || '').trim();
-  return (r.standardised_name || r.person_entry || '').trim();
+function scoreRecord(r, dataType, proximityTag) {
+  let score = proximityTag ? -1 : 0; // nearby pages start below direct
+
+  const af = anchor.filename     || '';
+  const rf = r.filename          || '';
+  const ak = pageKey(anchor.date, anchor.page_number);
+  const rk = pageKey(r.date,      r.page_number);
+
+  if (af && af === rf)  score += 4;
+  if (ak !== '|' && ak === rk) score += 3;
+  if (anchor.volume_issue && anchor.volume_issue === r.volume_issue) score += 0.5;
+
+  // Article title match
+  const aat = normalise(anchor.article_title || '');
+  const rat = normalise(r.article_title      || '');
+  if (aat && rat) {
+    if (aat === rat)           score += 2;
+    else if (fuzzyMatch(aat, rat)) score += 1;
+  }
+
+  // Name match (location or person) — compare anchor's own name to record's name
+  const anchorName = normalise(recordLabel(anchor, anchorType));
+  const recName    = normalise(recordLabel(r, dataType));
+  if (anchorName && recName) {
+    if (anchorName === recName)           score += 2;
+    else if (fuzzyMatch(anchorName, recName)) score += 1;
+  }
+
+  return score;
 }
 
-function computeSharedNames(allItems) {
-  // A name is "shared" if the same name string appears in 2+ distinct records
-  // across the full result set (including the anchor).
-  const counts = { article: {}, location: {}, person: {} };
-  const tally = (r, dt) => {
-    const n = nameOf(r, dt);
-    if (n) counts[dt][n] = (counts[dt][n] || 0) + 1;
+// ── Shared-name & shared-article computation ──────────────────────────────────
+
+function nameOfRecord(r, dataType) {
+  return normalise(recordLabel(r, dataType));
+}
+
+function articleTitleOf(r) {
+  return normalise(r.article_title || '');
+}
+
+function computeSharedSets(allItems) {
+  // shared names: normalised primary name appears in 2+ records
+  const nameCounts    = {};
+  const articleCounts = {};
+
+  const tallyName = (r, dt) => {
+    const n = nameOfRecord(r, dt);
+    if (n) nameCounts[n] = (nameCounts[n] || 0) + 1;
   };
-  tally(anchor, anchorType);
-  allItems.forEach(({ record, dataType }) => tally(record, dataType));
+  const tallyArticle = r => {
+    const a = articleTitleOf(r);
+    if (a) articleCounts[a] = (articleCounts[a] || 0) + 1;
+  };
 
-  sharedArticleTitles = new Set(Object.keys(counts.article).filter(k  => counts.article[k]  > 1));
-  sharedLocationNames = new Set(Object.keys(counts.location).filter(k => counts.location[k] > 1));
-  sharedPersonNames   = new Set(Object.keys(counts.person).filter(k   => counts.person[k]   > 1));
+  tallyName(anchor, anchorType);
+  tallyArticle(anchor);
+  allItems.forEach(({ record: r, dataType: dt }) => { tallyName(r, dt); tallyArticle(r); });
+
+  sharedNames    = new Set(Object.keys(nameCounts).filter(k    => nameCounts[k]    > 1));
+  sharedArticles = new Set(Object.keys(articleCounts).filter(k => articleCounts[k] > 1));
 }
 
-function isShared(r, dataType) {
-  if (dataType === 'article')  return sharedArticleTitles.has(nameOf(r, 'article'));
-  if (dataType === 'location') return sharedLocationNames.has(nameOf(r, 'location'));
-  return sharedPersonNames.has(nameOf(r, 'person'));
+// Returns { sharedName: bool, sharedArticle: bool } for a record
+function sharedFlags(r, dataType) {
+  const n = nameOfRecord(r, dataType);
+  const a = articleTitleOf(r);
+
+  // Fuzzy check against all shared name keys
+  let sharedName = false;
+  if (n) {
+    if (sharedNames.has(n)) {
+      sharedName = true;
+    } else {
+      for (const sn of sharedNames) {
+        if (fuzzyMatch(n, sn)) { sharedName = true; break; }
+      }
+    }
+  }
+
+  let sharedArticle = false;
+  if (a) {
+    if (sharedArticles.has(a)) {
+      sharedArticle = true;
+    } else {
+      for (const sa of sharedArticles) {
+        if (fuzzyMatch(a, sa)) { sharedArticle = true; break; }
+      }
+    }
+  }
+
+  return { sharedName, sharedArticle };
 }
 
 // ── Main render ───────────────────────────────────────────────────────────────
@@ -387,8 +590,7 @@ function isShared(r, dataType) {
 function renderConnections() {
   document.getElementById('placeholder').style.display = 'none';
   document.getElementById('content').style.display     = 'block';
-
-  document.getElementById('anchor-card').innerHTML = buildAnchorCard();
+  document.getElementById('anchor-card').innerHTML      = buildAnchorCard();
 
   const fn  = anchor.filename || '';
   const dpk = pageKey(anchor.date, anchor.page_number);
@@ -409,13 +611,12 @@ function renderConnections() {
     const tag  = np.offset < 0
       ? `${Math.abs(np.offset)} page${Math.abs(np.offset) > 1 ? 's' : ''} before`
       : `${np.offset} page${np.offset > 1 ? 's' : ''} after`;
-
     dedup([...(DB.articlesByFile[nfn]  || []), ...(DB.articlesByKey[nkey]  || [])]).filter(r => !seenA.has(r)).forEach(r => { nearbyArticles.push({ record: r, tag }); seenA.add(r); });
     dedup([...(DB.locationsByFile[nfn] || []), ...(DB.locationsByKey[nkey] || [])]).filter(r => !seenL.has(r)).forEach(r => { nearbyLocations.push({ record: r, tag }); seenL.add(r); });
     dedup([...(DB.personsByFile[nfn]   || []), ...(DB.personsByKey[nkey]   || [])]).filter(r => !seenP.has(r)).forEach(r => { nearbyPersons.push({ record: r, tag }); seenP.add(r); });
   });
 
-  // Compute shared names across everything
+  // Compute shared sets
   const allItems = [
     ...directArticles.map(r  => ({ record: r, dataType: 'article'  })),
     ...directLocations.map(r => ({ record: r, dataType: 'location' })),
@@ -424,14 +625,13 @@ function renderConnections() {
     ...nearbyLocations.map(({ record: r }) => ({ record: r, dataType: 'location' })),
     ...nearbyPersons.map(({ record: r })   => ({ record: r, dataType: 'person'   })),
   ];
-  computeSharedNames(allItems);
+  computeSharedSets(allItems);
 
-  // Apply view mode wrappers
   applyViewContainers();
 
-  renderSubSection('direct-articles',  directArticles,  'article');
-  renderSubSection('direct-locations', directLocations, 'location');
-  renderSubSection('direct-persons',   directPersons,   'person');
+  renderSubSection('direct-articles',  directArticles,  'article',  null);
+  renderSubSection('direct-locations', directLocations, 'location', null);
+  renderSubSection('direct-persons',   directPersons,   'person',   null);
   renderNearbySubSection('nearby-articles',  nearbyArticles,  'article');
   renderNearbySubSection('nearby-locations', nearbyLocations, 'location');
   renderNearbySubSection('nearby-persons',   nearbyPersons,   'person');
@@ -450,18 +650,16 @@ function renderConnections() {
   toggleEmpty('nearby-locations-empty', nearbyLocations.length === 0);
   toggleEmpty('nearby-persons-empty',   nearbyPersons.length   === 0);
 
-  const hasShared = sharedArticleTitles.size || sharedLocationNames.size || sharedPersonNames.size;
+  const hasShared = sharedNames.size || sharedArticles.size;
   document.getElementById('shared-legend').style.display = hasShared ? 'flex' : 'none';
 }
 
 function applyViewContainers() {
-  const ids = ['direct-articles','direct-locations','direct-persons','nearby-articles','nearby-locations','nearby-persons'];
-  ids.forEach(id => {
-    const tableWrap = document.getElementById(`${id}-table`);
-    const cardsWrap = document.getElementById(`${id}-wrap`);
-    if (!tableWrap || !cardsWrap) return;
-    tableWrap.style.display = viewMode === 'table' ? 'block' : 'none';
-    cardsWrap.style.display = viewMode === 'table' ? 'none'  : 'grid';
+  ['direct-articles','direct-locations','direct-persons','nearby-articles','nearby-locations','nearby-persons'].forEach(id => {
+    const tw = document.getElementById(`${id}-table`);
+    const cw = document.getElementById(`${id}-wrap`);
+    if (tw) tw.style.display = viewMode === 'table' ? 'block' : 'none';
+    if (cw) cw.style.display = viewMode === 'table' ? 'none'  : 'grid';
   });
 }
 
@@ -470,78 +668,74 @@ function toggleEmpty(id, show) { const el = document.getElementById(id); if (el)
 
 // ── Sub-section renderers ─────────────────────────────────────────────────────
 
-const INITIAL_SHOW = 10; // non-shared items shown before "Show all" button
-
-function sharedFirst(records, dataType) {
-  return [...records].sort((a, b) => (isShared(a, dataType) ? 0 : 1) - (isShared(b, dataType) ? 0 : 1));
+// Sort by descending relevance score, then shared flags (sharedName > sharedArticle > neither)
+function sortByRelevance(items, dataType, isNearby) {
+  // items: either plain records (direct) or {record, tag} (nearby)
+  return [...items].sort((a, b) => {
+    const ra = isNearby ? a.record : a;
+    const rb = isNearby ? b.record : b;
+    const ta = isNearby ? a.tag   : null;
+    const tb = isNearby ? b.tag   : null;
+    const sa = scoreRecord(ra, dataType, ta);
+    const sb = scoreRecord(rb, dataType, tb);
+    if (sb !== sa) return sb - sa;
+    // Tiebreak: sharedName > sharedArticle > none
+    const fa = sharedFlags(ra, dataType);
+    const fb = sharedFlags(rb, dataType);
+    return ((fb.sharedName ? 2 : 0) + (fb.sharedArticle ? 1 : 0))
+         - ((fa.sharedName ? 2 : 0) + (fa.sharedArticle ? 1 : 0));
+  });
 }
 
-// Render items into a container with optional collapse. expandedSections tracks
-// which sub-section IDs the user has expanded.
-const expandedSections = new Set();
-
 function renderSubSection(id, records, dataType) {
-  const sorted = sharedFirst(records, dataType);
-  const sharedCount = sorted.filter(r => isShared(r, dataType)).length;
-  const limit       = expandedSections.has(id) ? sorted.length : sharedCount + INITIAL_SHOW;
-  const visible     = sorted.slice(0, limit);
-  const hidden      = sorted.length - visible.length;
+  const sorted = sortByRelevance(records, dataType, false);
+  const highCount = sorted.filter(r => { const f = sharedFlags(r, dataType); return f.sharedName || f.sharedArticle; }).length;
+  const limit   = expandedSections.has(id) ? sorted.length : highCount + INITIAL_SHOW;
+  const visible = sorted.slice(0, Math.min(limit, sorted.length));
+  const hidden  = sorted.length - visible.length;
 
   if (viewMode === 'table') {
     const tbody = document.getElementById(`${id}-body`);
-    if (tbody) tbody.innerHTML = visible.map(r => buildTableRow(r, dataType, null, isShared(r, dataType))).join('');
+    if (tbody) tbody.innerHTML = visible.map(r => buildTableRow(r, dataType, null, sharedFlags(r, dataType))).join('');
   } else {
     const wrap = document.getElementById(`${id}-wrap`);
-    if (wrap) wrap.innerHTML = visible.map(r => buildCard(r, dataType, null, isShared(r, dataType))).join('');
+    if (wrap) wrap.innerHTML = visible.map(r => buildCard(r, dataType, null, sharedFlags(r, dataType))).join('');
   }
-
-  renderExpandButton(id, hidden, sorted.length, dataType, false);
+  renderExpandButton(id, hidden, sorted.length, false);
 }
 
 function renderNearbySubSection(id, items, dataType) {
-  const sorted = [...items].sort((a, b) => (isShared(a.record, dataType) ? 0 : 1) - (isShared(b.record, dataType) ? 0 : 1));
-  const sharedCount = sorted.filter(({ record: r }) => isShared(r, dataType)).length;
-  const limit       = expandedSections.has(id) ? sorted.length : sharedCount + INITIAL_SHOW;
-  const visible     = sorted.slice(0, limit);
-  const hidden      = sorted.length - visible.length;
+  const sorted = sortByRelevance(items, dataType, true);
+  const highCount = sorted.filter(({ record: r }) => { const f = sharedFlags(r, dataType); return f.sharedName || f.sharedArticle; }).length;
+  const limit   = expandedSections.has(id) ? sorted.length : highCount + INITIAL_SHOW;
+  const visible = sorted.slice(0, Math.min(limit, sorted.length));
+  const hidden  = sorted.length - visible.length;
 
   if (viewMode === 'table') {
     const tbody = document.getElementById(`${id}-body`);
-    if (tbody) tbody.innerHTML = visible.map(({ record: r, tag }) => buildTableRow(r, dataType, tag, isShared(r, dataType))).join('');
+    if (tbody) tbody.innerHTML = visible.map(({ record: r, tag }) => buildTableRow(r, dataType, tag, sharedFlags(r, dataType))).join('');
   } else {
     const wrap = document.getElementById(`${id}-wrap`);
-    if (wrap) wrap.innerHTML = visible.map(({ record: r, tag }) => buildCard(r, dataType, tag, isShared(r, dataType))).join('');
+    if (wrap) wrap.innerHTML = visible.map(({ record: r, tag }) => buildCard(r, dataType, tag, sharedFlags(r, dataType))).join('');
   }
-
-  renderExpandButton(id, hidden, sorted.length, dataType, true);
+  renderExpandButton(id, hidden, sorted.length, true);
 }
 
-function renderExpandButton(id, hiddenCount, total, dataType, isNearby) {
+function renderExpandButton(id, hiddenCount, total, isNearby) {
   const btnId = `${id}-expand-btn`;
   let btn = document.getElementById(btnId);
-
-  if (hiddenCount <= 0) {
-    if (btn) btn.remove();
-    return;
-  }
-
+  if (hiddenCount <= 0) { if (btn) btn.remove(); return; }
   if (!btn) {
     btn = document.createElement('div');
-    btn.id        = btnId;
+    btn.id = btnId;
     btn.className = 'expand-btn-wrap';
-    // Insert after the table-wrap or cards-wrap, within the sub-section
     const ref = document.getElementById(`${id}-table`) || document.getElementById(`${id}-wrap`);
     if (ref && ref.parentNode) ref.parentNode.insertBefore(btn, ref.nextSibling);
   }
-
-  btn.innerHTML = `<button class="expand-btn" onclick="expandSection('${id}', '${dataType}', ${isNearby})">
-    Show all ${total} matches (${hiddenCount} more)
-  </button>`;
+  btn.innerHTML = `<button class="expand-btn" onclick="expandSection('${id}')">Show all ${total} matches (${hiddenCount} more)</button>`;
 }
 
-// expandSection: called by the "Show all" button. Marks section as expanded
-// and re-triggers the full render to regenerate with no limit.
-function expandSection(id, dataType, isNearby) {
+function expandSection(id) {
   expandedSections.add(id);
   if (anchor) renderConnections();
 }
@@ -557,9 +751,7 @@ function field(label, value) {
 
 function buildAnchorCard() {
   const r = anchor, type = anchorType;
-  const name = type === 'article'  ? (r.article_title || '—')
-             : type === 'location' ? (r.location_entry || '—')
-             : (r.standardised_name || r.person_entry || '—');
+  const name = recordLabel(r, type) || '—';
   let fields = '';
   if (type === 'article') {
     fields = field('Type', r.article_type) + field('Page', r.page_number) + field('Date', r.date) + field('Vol/Issue', r.volume_issue) + field('File', r.filename);
@@ -577,9 +769,10 @@ function buildAnchorCard() {
   </div>`;
 }
 
-// ── Card builder ──────────────────────────────────────────────────────────────
+// ── Card builder (with click-to-explore) ──────────────────────────────────────
 
-function buildCard(r, dataType, proximityTag, shared) {
+// flags: { sharedName, sharedArticle }
+function buildCard(r, dataType, proximityTag, flags) {
   let title = '', fields = '';
   if (dataType === 'article') {
     title  = r.article_title || '—';
@@ -591,39 +784,63 @@ function buildCard(r, dataType, proximityTag, shared) {
     title  = r.standardised_name || r.person_entry || '—';
     fields = field('As appears', r.person_entry) + field('Title', r.title) + field('Role', r.role) + field('Organisation', r.associated_organisation) + field('Gender', r.gender) + field('Relation', r.relation) + field('Depicted', r.depicted) + field('Article', r.article_title) + field('Page', r.page_number) + field('Date', r.date) + field('Vol/Issue', r.volume_issue) + field('File', r.filename) + (r.brief_extract ? `<details class="conn-extract"><summary>View extract</summary><p>${r.brief_extract}</p></details>` : '');
   }
+
+  const score = scoreRecord(r, dataType, proximityTag);
   const proximityHtml = proximityTag ? `<div class="proximity-tag">📍 ${proximityTag}</div>` : '';
-  const sharedBanner  = shared ? `<div class="shared-banner">★ Shared name</div>` : '';
-  return `<div class="conn-card conn-${dataType}${shared ? ' conn-shared' : ''}">
+
+  let banners = '';
+  if (flags.sharedName)    banners += `<div class="shared-banner shared-banner-name">★ Shared name</div>`;
+  if (flags.sharedArticle) banners += `<div class="shared-banner shared-banner-article">◆ Shared article</div>`;
+
+  const cls = [
+    `conn-card conn-${dataType}`,
+    flags.sharedName    ? 'conn-shared-name'    : '',
+    flags.sharedArticle ? 'conn-shared-article' : '',
+  ].filter(Boolean).join(' ');
+
+  // Encode record ref for click-to-explore (store as dataset attributes)
+  const encodedType = dataType;
+  const encodedFile = (r.filename     || '').replace(/"/g, '&quot;');
+  const encodedPage = (r.page_number  || '').toString();
+  const encodedDate = (r.date         || '').replace(/"/g, '&quot;');
+
+  return `<div class="${cls}" data-explore-type="${encodedType}" data-explore-file="${encodedFile}" data-explore-page="${encodedPage}" data-explore-date="${encodedDate}" title="Click to explore connections for this record">
     <div class="conn-card-hdr conn-hdr-${dataType}">
       <span class="conn-type-badge">${dataType.charAt(0).toUpperCase() + dataType.slice(1)}</span>
       <span class="conn-card-title">${title}</span>
+      <span class="explore-hint">→</span>
     </div>
-    <div class="conn-card-body">${proximityHtml}${sharedBanner}${fields}</div>
+    <div class="conn-card-body">${proximityHtml}${banners}${fields}</div>
   </div>`;
 }
 
 // ── Table row builder ─────────────────────────────────────────────────────────
 
-function buildTableRow(r, dataType, proximityTag, shared) {
-  const sharedCls  = shared ? ' class="shared-row"' : '';
-  const sharedStar = shared ? '★ ' : '';
+function buildTableRow(r, dataType, proximityTag, flags) {
   const typeLabel  = dataType.charAt(0).toUpperCase() + dataType.slice(1);
   const proximity  = proximityTag ? `<span class="proximity-tag">📍 ${proximityTag}</span>` : '';
+  let cls = '';
+  if (flags.sharedName && flags.sharedArticle) cls = ' class="shared-both-row"';
+  else if (flags.sharedName)    cls = ' class="shared-name-row"';
+  else if (flags.sharedArticle) cls = ' class="shared-article-row"';
+
+  let stars = '';
+  if (flags.sharedName)    stars += '★ ';
+  if (flags.sharedArticle) stars += '◆ ';
 
   let name = '', detail = '';
   if (dataType === 'article') {
-    name   = r.article_title || '';
-    detail = r.article_type  || '';
+    name = r.article_title || ''; detail = r.article_type || '';
   } else if (dataType === 'location') {
-    name   = r.location_entry        || '';
-    detail = r.location_standardised || '';
+    name = r.location_entry || ''; detail = r.location_standardised || '';
   } else {
-    name   = r.standardised_name || r.person_entry || '';
+    name = r.standardised_name || r.person_entry || '';
     detail = [r.role, r.associated_organisation].filter(Boolean).join(' · ');
   }
 
-  return `<tr${sharedCls}>
-    <td>${sharedStar}${name}</td>
+  const encodedFile = (r.filename || '').replace(/"/g, '&quot;');
+  return `<tr${cls} data-explore-type="${dataType}" data-explore-file="${encodedFile}" data-explore-page="${r.page_number || ''}" data-explore-date="${r.date || ''}" style="cursor:pointer;" title="Click to explore">
+    <td>${stars}${name}</td>
     <td>${typeLabel}</td>
     <td>${detail}</td>
     <td>${r.page_number  || ''}</td>
@@ -634,40 +851,52 @@ function buildTableRow(r, dataType, proximityTag, shared) {
   </tr>`;
 }
 
-// ── Load ──────────────────────────────────────────────────────────────────────
+// ── Click-to-explore (event delegation) ──────────────────────────────────────
+
+function attachClickToExplore() {
+  document.getElementById('content').addEventListener('click', e => {
+    const card = e.target.closest('[data-explore-type]');
+    if (!card) return;
+    if (e.target.tagName === 'SUMMARY' || e.target.tagName === 'A' || e.target.tagName === 'BUTTON') return;
+
+    const type = card.dataset.exploreType;
+    const file = card.dataset.exploreFile;
+    const page = card.dataset.explorePage;
+    const date = card.dataset.exploreDate;
+
+    // Find the matching record in DB
+    const pool = type === 'article' ? DB.articles : type === 'location' ? DB.locations : DB.persons;
+    const match = pool.find(r =>
+      (r.filename     || '') === file &&
+      (r.page_number  || '').toString() === page &&
+      (r.date         || '') === date
+    );
+
+    if (match) setAnchor(match, type);
+  });
+}
+
+// ── Initial load (vols only; year files lazy) ─────────────────────────────────
 
 async function loadAll() {
   document.getElementById('loading-bar').style.display = 'block';
-  document.getElementById('loading-status').textContent = 'Loading data…';
+  document.getElementById('loading-status').textContent = 'Loading index data…';
 
-  const [articleArrays, locationArrays, personArrays] = await Promise.all([
-    Promise.all(ARTICLE_FILES.map(loadFile)),
-    Promise.all(LOCATION_FILES.map(loadFile)),
-    Promise.all(PERSON_FILES.map(loadFile)),
-  ]);
-
-  DB.articles  = articleArrays.flat();
-  DB.locations = locationArrays.flat();
-  DB.persons   = personArrays.flat();
-
-  document.getElementById('loading-status').textContent = 'Building indexes…';
-
-  buildIndex(DB.articles,  DB.articlesByFile,  DB.articlesByKey);
-  buildIndex(DB.locations, DB.locationsByFile, DB.locationsByKey);
-  buildIndex(DB.persons,   DB.personsByFile,   DB.personsByKey);
-  buildPageRegistry();
-  buildSearchIndexes();
-
-  document.getElementById('dataset-meta').textContent =
-    `${DB.articles.length.toLocaleString()} articles · ${DB.locations.length.toLocaleString()} locations · ${DB.persons.length.toLocaleString()} persons`;
+  await ensureVolsLoaded();
 
   document.getElementById('loading-bar').style.display  = 'none';
   document.getElementById('loading-status').textContent  = '';
   document.getElementById('search-area').style.display   = 'block';
   document.getElementById('view-toggle').style.display   = 'flex';
+  document.getElementById('dataset-meta').textContent    =
+    `${DB.articles.length.toLocaleString()} articles · ${DB.locations.length.toLocaleString()} locations · ${DB.persons.length.toLocaleString()} persons (full index loading on first search…)`;
 
   attachDropdown();
   attachViewToggle();
+  attachClickToExplore();
+
+  // Start loading all years in background so it's ready by the time someone searches
+  ensureAllYearsLoaded(null);
 }
 
 loadAll().catch(err => {
