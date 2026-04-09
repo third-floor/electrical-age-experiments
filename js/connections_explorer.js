@@ -211,15 +211,21 @@ function nearbyPages(radius = 2) {
 
 // ── Lazy loading ──────────────────────────────────────────────────────────────
 
+// Maps singular type name -> DB plural key prefix
+const TYPE_TO_DB = { article: 'articles', location: 'locations', person: 'persons' };
+
 async function ensureVolsLoaded() {
   if (volsLoaded) return;
-  const sets = await Promise.all(['articles','locations','persons'].map(async type => {
-    const records = (await Promise.all(VOL_FILES[type].map(f => fetchFile(BASE + f)))).flat();
+  const types = ['article', 'location', 'person'];
+  const volKeys = { article: 'articles', location: 'locations', person: 'persons' };
+  const sets = await Promise.all(types.map(async type => {
+    const records = (await Promise.all(VOL_FILES[volKeys[type]].map(f => fetchFile(BASE + f)))).flat();
     return { type, records };
   }));
   sets.forEach(({ type, records }) => {
-    DB[type].push(...records);
-    addToIndex(records, DB[`${type}sByFile`], DB[`${type}sByKey`]);
+    const dbKey = TYPE_TO_DB[type];
+    DB[dbKey].push(...records);
+    addToIndex(records, DB[`${dbKey}ByFile`], DB[`${dbKey}ByKey`]);
     addToUnifiedIndex(records, type);
   });
   buildPageRegistry();
@@ -239,16 +245,19 @@ async function ensureAllYearsLoaded(progressCb) {
     const batch = unloaded.slice(i, i + BATCH);
     await Promise.all(batch.map(async (triple, bi) => {
       const idx = i + bi;
+      // triple keys are plural ('articles','locations','persons'); convert to singular for type funcs
+      const pluralToSingular = { articles: 'article', locations: 'location', persons: 'person' };
       const sets = await Promise.all(
-        Object.entries(triple).map(async ([type, filename]) => {
+        Object.entries(triple).map(async ([pluralKey, filename]) => {
           const records = await fetchFile(BASE + filename);
-          return { type, records };
+          return { pluralKey, records };
         })
       );
-      sets.forEach(({ type, records }) => {
-        DB[type].push(...records);
-        addToIndex(records, DB[`${type}sByFile`], DB[`${type}sByKey`]);
-        addToUnifiedIndex(records, type);
+      sets.forEach(({ pluralKey, records }) => {
+        const singularType = pluralToSingular[pluralKey];
+        DB[pluralKey].push(...records);
+        addToIndex(records, DB[`${pluralKey}ByFile`], DB[`${pluralKey}ByKey`]);
+        addToUnifiedIndex(records, singularType);
       });
       loadedYears.add(idx);
       done++;
