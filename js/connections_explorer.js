@@ -263,16 +263,93 @@ function attachViewToggle() {
   });
 }
 
-// ── Anchor selection ──────────────────────────────────────────────────────────
+// ── Anchor selection & disambiguation ─────────────────────────────────────────
 
 function pickAnchor(record, type) {
-  anchor = record; anchorType = type;
   const label = type === 'article'  ? (record.article_title  || '')
               : type === 'location' ? (record.location_entry  || '')
               :                       (record.standardised_name || record.person_entry || '');
-  document.getElementById('conn-search').value = label;
+
+  const idx   = type === 'article' ? articleIndex : type === 'location' ? locationIndex : personIndex;
+  const dupes = idx.filter(e => e.label === label);
+
+  document.getElementById('conn-search').value     = label;
   document.getElementById('conn-dd').style.display = 'none';
+
+  if (dupes.length > 1) {
+    showDisambiguation(dupes, type, label);
+  } else {
+    setAnchor(record, type);
+  }
+}
+
+function setAnchor(record, type) {
+  anchor = record; anchorType = type;
+  expandedSections.clear();
+  hideDisambiguation();
   renderConnections();
+}
+
+function showDisambiguation(entries, type, name) {
+  document.getElementById('placeholder').style.display = 'none';
+  document.getElementById('content').style.display     = 'none';
+
+  let panel = document.getElementById('disambig-panel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'disambig-panel';
+    const sa = document.getElementById('search-area');
+    sa.parentNode.insertBefore(panel, sa.nextSibling);
+  }
+
+  const typeLabel = type.charAt(0).toUpperCase() + type.slice(1);
+  const cols = type === 'article'
+    ? ['Title', 'Type', 'Page', 'Date', 'Vol / Issue', 'File']
+    : type === 'location'
+    ? ['Location', 'Standardised', 'Article', 'Page', 'Date', 'Vol / Issue', 'File']
+    : ['Name', 'As appears', 'Role', 'Organisation', 'Article', 'Page', 'Date', 'Vol / Issue', 'File'];
+
+  function rowCells(e) {
+    const r = e.record;
+    if (type === 'article')  return [r.article_title, r.article_type, r.page_number, r.date, r.volume_issue, r.filename];
+    if (type === 'location') return [r.location_entry, r.location_standardised, r.article_title, r.page_number, r.date, r.volume_issue, r.filename];
+    return [r.standardised_name || r.person_entry, r.person_entry, r.role, r.associated_organisation, r.article_title, r.page_number, r.date, r.volume_issue, r.filename];
+  }
+
+  const rows = entries.map((e, i) => `
+    <tr class="disambig-row" data-idx="${i}">
+      ${rowCells(e).map(v => `<td>${v || ''}</td>`).join('')}
+      <td><button class="disambig-pick-btn" data-idx="${i}">Select</button></td>
+    </tr>`).join('');
+
+  panel.innerHTML = `
+    <div class="disambig-header">
+      <span class="disambig-title">Multiple matches for <em>${name}</em></span>
+      <span class="disambig-sub">${entries.length} ${typeLabel} records found — select the one you want to explore</span>
+    </div>
+    <div class="disambig-table-wrap">
+      <table class="disambig-table">
+        <thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}<th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+
+  panel.style.display = 'block';
+
+  panel.querySelectorAll('.disambig-pick-btn').forEach(btn => {
+    btn.addEventListener('click', () => setAnchor(entries[+btn.dataset.idx].record, type));
+  });
+  panel.querySelectorAll('.disambig-row').forEach(row => {
+    row.addEventListener('click', e => {
+      if (e.target.tagName === 'BUTTON') return;
+      setAnchor(entries[+row.dataset.idx].record, type);
+    });
+  });
+}
+
+function hideDisambiguation() {
+  const panel = document.getElementById('disambig-panel');
+  if (panel) panel.style.display = 'none';
 }
 
 // ── Shared-name computation ───────────────────────────────────────────────────
@@ -393,30 +470,80 @@ function toggleEmpty(id, show) { const el = document.getElementById(id); if (el)
 
 // ── Sub-section renderers ─────────────────────────────────────────────────────
 
+const INITIAL_SHOW = 10; // non-shared items shown before "Show all" button
+
 function sharedFirst(records, dataType) {
   return [...records].sort((a, b) => (isShared(a, dataType) ? 0 : 1) - (isShared(b, dataType) ? 0 : 1));
 }
 
+// Render items into a container with optional collapse. expandedSections tracks
+// which sub-section IDs the user has expanded.
+const expandedSections = new Set();
+
 function renderSubSection(id, records, dataType) {
   const sorted = sharedFirst(records, dataType);
+  const sharedCount = sorted.filter(r => isShared(r, dataType)).length;
+  const limit       = expandedSections.has(id) ? sorted.length : sharedCount + INITIAL_SHOW;
+  const visible     = sorted.slice(0, limit);
+  const hidden      = sorted.length - visible.length;
+
   if (viewMode === 'table') {
     const tbody = document.getElementById(`${id}-body`);
-    if (tbody) tbody.innerHTML = sorted.map(r => buildTableRow(r, dataType, null, isShared(r, dataType))).join('');
+    if (tbody) tbody.innerHTML = visible.map(r => buildTableRow(r, dataType, null, isShared(r, dataType))).join('');
   } else {
     const wrap = document.getElementById(`${id}-wrap`);
-    if (wrap) wrap.innerHTML = sorted.map(r => buildCard(r, dataType, null, isShared(r, dataType))).join('');
+    if (wrap) wrap.innerHTML = visible.map(r => buildCard(r, dataType, null, isShared(r, dataType))).join('');
   }
+
+  renderExpandButton(id, hidden, sorted.length, dataType, false);
 }
 
 function renderNearbySubSection(id, items, dataType) {
   const sorted = [...items].sort((a, b) => (isShared(a.record, dataType) ? 0 : 1) - (isShared(b.record, dataType) ? 0 : 1));
+  const sharedCount = sorted.filter(({ record: r }) => isShared(r, dataType)).length;
+  const limit       = expandedSections.has(id) ? sorted.length : sharedCount + INITIAL_SHOW;
+  const visible     = sorted.slice(0, limit);
+  const hidden      = sorted.length - visible.length;
+
   if (viewMode === 'table') {
     const tbody = document.getElementById(`${id}-body`);
-    if (tbody) tbody.innerHTML = sorted.map(({ record: r, tag }) => buildTableRow(r, dataType, tag, isShared(r, dataType))).join('');
+    if (tbody) tbody.innerHTML = visible.map(({ record: r, tag }) => buildTableRow(r, dataType, tag, isShared(r, dataType))).join('');
   } else {
     const wrap = document.getElementById(`${id}-wrap`);
-    if (wrap) wrap.innerHTML = sorted.map(({ record: r, tag }) => buildCard(r, dataType, tag, isShared(r, dataType))).join('');
+    if (wrap) wrap.innerHTML = visible.map(({ record: r, tag }) => buildCard(r, dataType, tag, isShared(r, dataType))).join('');
   }
+
+  renderExpandButton(id, hidden, sorted.length, dataType, true);
+}
+
+function renderExpandButton(id, hiddenCount, total, dataType, isNearby) {
+  const btnId = `${id}-expand-btn`;
+  let btn = document.getElementById(btnId);
+
+  if (hiddenCount <= 0) {
+    if (btn) btn.remove();
+    return;
+  }
+
+  if (!btn) {
+    btn = document.createElement('div');
+    btn.id        = btnId;
+    btn.className = 'expand-btn-wrap';
+    // Insert after the table-wrap or cards-wrap, within the sub-section
+    const ref = document.getElementById(`${id}-table`) || document.getElementById(`${id}-wrap`);
+    if (ref && ref.parentNode) ref.parentNode.insertBefore(btn, ref.nextSibling);
+  }
+
+  btn.innerHTML = `<button class="expand-btn" onclick="expandSection('${id}', '${dataType}', ${isNearby})">
+    Show all ${total} matches (${hiddenCount} more)
+  </button>`;
+}
+
+// expandSection: called by the "Show all" button. Marks section as expanded
+// and re-triggers the full render to regenerate with no limit.
+function expandSection(id, dataType, isNearby) {
+  expandedSections.add(id);
+  if (anchor) renderConnections();
 }
 
 // ── Field helper ──────────────────────────────────────────────────────────────
