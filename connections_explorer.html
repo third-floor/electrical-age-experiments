@@ -20,20 +20,19 @@
         /* ── Search area ─────────────────────────────────────────────────── */
         #search-area { display: none; background: #fdfaf3; border: 1px solid #d3c9b1; padding: 1.25rem; margin-bottom: 1rem; }
         .search-area-hdr { font-family: Georgia, serif; font-variant: small-caps; font-size: 0.82rem; letter-spacing: 0.05em; color: #888; margin-bottom: 0.75rem; }
-        .search-row { display: flex; gap: 0.5rem; align-items: stretch; }
-        #search-type { padding: 0.55rem 0.75rem; font-size: 0.88rem; font-family: Georgia, serif; border: 1px solid #ccc; border-radius: 3px; background: #fff; flex-shrink: 0; cursor: pointer; }
-        #search-type:focus { outline: none; border-color: #2c2c2c; }
-        .search-wrap { position: relative; flex: 1; }
-        #conn-search { width: 100%; padding: 0.55rem 0.9rem; font-size: 0.95rem; font-family: Georgia, serif; border: 1px solid #ccc; border-radius: 3px; background: #fff; box-sizing: border-box; }
+        .search-wrap { position: relative; }
+        #conn-search { width: 100%; padding: 0.6rem 1rem; font-size: 1rem; font-family: Georgia, serif; border: 1px solid #ccc; border-radius: 3px; background: #fff; box-sizing: border-box; }
         #conn-search:focus { outline: none; border-color: #2c2c2c; }
 
         /* ── Dropdown ────────────────────────────────────────────────────── */
-        #conn-dd { position: absolute; top: calc(100% + 2px); left: 0; right: 0; max-height: 320px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-top: none; z-index: 300; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-        .dd-item { padding: 0.45rem 0.8rem; cursor: pointer; border-bottom: 1px solid #f5f5f5; display: flex; flex-direction: column; gap: 2px; }
+        #conn-dd { position: absolute; top: calc(100% + 2px); left: 0; right: 0; max-height: 360px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-top: none; z-index: 300; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .dd-item { padding: 0.42rem 0.8rem; cursor: pointer; border-bottom: 1px solid #f5f5f5; display: flex; align-items: flex-start; gap: 0.5rem; }
         .dd-item:hover, .dd-item.active { background: #f5f0e8; }
-        .dd-title { font-family: Georgia, serif; font-size: 0.88rem; color: #2c2c2c; }
-        .dd-meta  { font-family: Georgia, serif; font-size: 0.75rem; color: #aaa; font-style: italic; }
+        .dd-type-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 0.3rem; }
+        .dd-title { font-family: Georgia, serif; font-size: 0.88rem; color: #2c2c2c; flex: 1; }
+        .dd-meta  { font-family: Georgia, serif; font-size: 0.74rem; color: #aaa; font-style: italic; white-space: nowrap; }
         .dd-group-label { padding: 0.22rem 0.8rem; font-size: 0.71rem; text-transform: uppercase; letter-spacing: 0.06em; color: #bbb; background: #fafafa; font-family: Georgia, serif; border-bottom: 1px solid #f0f0f0; pointer-events: none; }
+        .dd-loading { padding: 0.75rem 1rem; font-family: Georgia, serif; font-size: 0.85rem; font-style: italic; color: #aaa; }
 
         /* ── View toggle ─────────────────────────────────────────────────── */
         #view-toggle { display: none; gap: 0; margin-bottom: 1.25rem; align-items: center; }
@@ -45,13 +44,16 @@
         .view-btn.active { background: #2c2c2c; color: #fff; border-color: #2c2c2c; }
 
         /* ── Shared legend ───────────────────────────────────────────────── */
-        #shared-legend { display: none; align-items: center; gap: 0.6rem; margin-bottom: 1.5rem; padding: 0.6rem 1rem; background: #fffbe6; border: 1px solid #ffe082; border-left: 4px solid #f9a825; font-family: Georgia, serif; font-size: 0.85rem; color: #5d4000; }
-        .shared-swatch { width: 14px; height: 14px; background: #fff8c5; border: 2px solid #f9a825; border-radius: 2px; flex-shrink: 0; }
+        #shared-legend { display: none; align-items: center; gap: 1rem; margin-bottom: 1.5rem; padding: 0.6rem 1rem; background: #fdfaf3; border: 1px solid #d3c9b1; font-family: Georgia, serif; font-size: 0.83rem; color: #444; flex-wrap: wrap; }
+        .legend-item { display: flex; align-items: center; gap: 0.4rem; }
+        .legend-swatch { width: 14px; height: 14px; border-radius: 2px; flex-shrink: 0; }
+        .swatch-name    { background: #fff8c5; border: 2px solid #f9a825; }
+        .swatch-article { background: #e8f5e9; border: 2px solid #388e3c; }
 
         /* ── Placeholder ─────────────────────────────────────────────────── */
         #placeholder { text-align: center; padding: 4rem 1rem; font-family: Georgia, serif; color: #999; font-style: italic; border: 1px dashed #d3c9b1; background: #fdfaf3; }
 
-        /* ── Sections ────────────────────────────────────────────────────── */
+        /* ── Section blocks ──────────────────────────────────────────────── */
         .section-block  { margin-bottom: 2.5rem; }
         .section-header { border-bottom: 1px solid #2c2c2c; margin-bottom: 1.25rem; padding-bottom: 0.4rem; display: flex; align-items: baseline; gap: 0.75rem; flex-wrap: wrap; }
         .section-header h3 { font-family: Georgia, serif; font-variant: small-caps; font-size: 1.2rem; letter-spacing: 2px; margin: 0; }
@@ -73,18 +75,17 @@
         /* ── Cards grid ──────────────────────────────────────────────────── */
         .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.75rem; }
 
-        /* ── Shared highlight ────────────────────────────────────────────── */
-        .conn-shared { border-color: #f9a825 !important; border-width: 2px !important; }
-        .shared-banner { font-family: Georgia, serif; font-size: 0.75rem; font-style: italic; color: #7a5c00; background: #fff8c5; border: 1px solid #ffe082; padding: 0.2rem 0.5rem; margin-bottom: 0.5rem; display: inline-block; }
-
         /* ── Cards ───────────────────────────────────────────────────────── */
-        .conn-card { border: 1px solid #d3c9b1; overflow: hidden; font-family: Georgia, serif; }
+        .conn-card { border: 1px solid #d3c9b1; overflow: hidden; font-family: Georgia, serif; cursor: pointer; transition: box-shadow 0.15s; }
+        .conn-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
         .conn-card-hdr { padding: 0.45rem 0.75rem; display: flex; align-items: flex-start; gap: 0.5rem; }
         .conn-hdr-article  { background: #1565c0; color: #fff; }
         .conn-hdr-location { background: #136348; color: #fff; }
         .conn-hdr-person   { background: #4527a0; color: #fff; }
         .conn-type-badge { font-size: 0.68rem; font-variant: small-caps; letter-spacing: 0.05em; opacity: 0.75; flex-shrink: 0; padding-top: 1px; }
-        .conn-card-title { font-size: 0.85rem; font-weight: bold; line-height: 1.3; }
+        .conn-card-title { font-size: 0.85rem; font-weight: bold; line-height: 1.3; flex: 1; }
+        .explore-hint { font-size: 0.8rem; opacity: 0.5; flex-shrink: 0; padding-top: 1px; }
+        .conn-card:hover .explore-hint { opacity: 1; }
         .conn-card-body { padding: 0.6rem 0.75rem; background: #fdfaf3; }
         .conn-field { display: flex; gap: 0.5rem; font-size: 0.82rem; padding: 0.18rem 0; border-bottom: 1px solid #f0ebe0; line-height: 1.35; }
         .conn-field:last-child { border-bottom: none; }
@@ -94,6 +95,15 @@
         .conn-extract summary { cursor: pointer; color: #1565c0; font-style: italic; }
         .conn-extract summary:hover { text-decoration: underline; }
         .conn-extract p { margin: 0.4rem 0 0; padding: 0.4rem 0.6rem; background: #f5f0e8; border-left: 3px solid #d3c9b1; font-size: 0.82rem; line-height: 1.45; color: #333; }
+
+        /* ── Shared highlights (two types) ───────────────────────────────── */
+        .conn-shared-name    { border-color: #f9a825 !important; border-width: 2px !important; }
+        .conn-shared-article { border-color: #388e3c !important; border-width: 2px !important; }
+        .conn-shared-name.conn-shared-article { border-color: #f9a825 !important; outline: 2px solid #388e3c; outline-offset: 1px; }
+
+        .shared-banner { font-family: Georgia, serif; font-size: 0.74rem; font-style: italic; padding: 0.18rem 0.5rem; margin-bottom: 0.4rem; display: inline-block; border-radius: 2px; margin-right: 0.3rem; }
+        .shared-banner-name    { color: #7a5c00; background: #fff8c5; border: 1px solid #ffe082; }
+        .shared-banner-article { color: #1b5e20; background: #e8f5e9; border: 1px solid #a5d6a7; }
 
         /* ── Proximity tag ───────────────────────────────────────────────── */
         .proximity-tag { display: inline-block; font-size: 0.72rem; font-family: Georgia, serif; background: #fff3e0; color: #e65100; border: 1px solid #ffcc80; border-radius: 2px; padding: 0.15rem 0.5rem; margin-bottom: 0.5rem; }
@@ -105,14 +115,12 @@
         .conn-table td { padding: 0.32rem 0.65rem; border-bottom: 1px solid #e0d8c8; vertical-align: top; }
         .conn-table tr:nth-child(even) td { background: #fdfaf3; }
         .conn-table tr:hover td { background: #f5f0e8; }
-        .conn-table tr.shared-row td { background: #fff8c5; }
-        .conn-table tr.shared-row:hover td { background: #fff3a0; }
-
-        /* ── Nearby callout ──────────────────────────────────────────────── */
-        .nearby-note { background: #fff8ee; border: 1px solid #ffe0b2; border-left: 4px solid #ff9800; padding: 0.6rem 1rem; font-family: Georgia, serif; font-size: 0.87rem; font-style: italic; color: #5d4037; margin-bottom: 1rem; }
-
-        .ornament { text-align: center; color: #bbb; font-size: 1.2rem; margin: 2rem 0 1.75rem; letter-spacing: 8px; }
-        #content { display: none; }
+        .conn-table tr.shared-name-row    td { background: #fff8c5; }
+        .conn-table tr.shared-article-row td { background: #e8f5e9; }
+        .conn-table tr.shared-both-row    td { background: #fffde7; }
+        .conn-table tr.shared-name-row:hover    td { background: #fff3a0; }
+        .conn-table tr.shared-article-row:hover td { background: #dcedc8; }
+        .conn-table tr.shared-both-row:hover    td { background: #fff9c4; }
 
         /* ── Disambiguation panel ────────────────────────────────────────── */
         #disambig-panel { display: none; margin-bottom: 1.5rem; border: 1px solid #d3c9b1; background: #fdfaf3; }
@@ -121,12 +129,12 @@
         .disambig-sub   { font-family: Georgia, serif; font-size: 0.82rem; font-style: italic; color: #777; }
         .disambig-table-wrap { overflow-x: auto; }
         .disambig-table { width: 100%; border-collapse: collapse; font-family: Georgia, serif; font-size: 0.83rem; }
-        .disambig-table th { background: #2c2c2c; color: #fff; padding: 0.38rem 0.7rem; text-align: left; font-weight: normal; font-variant: small-caps; letter-spacing: 0.05em; white-space: nowrap; }
-        .disambig-table td { padding: 0.32rem 0.7rem; border-bottom: 1px solid #e8e0d0; vertical-align: top; }
-        .disambig-table tr:nth-child(even) td { background: #faf7f0; }
+        .disambig-table th { background: #2c2c2c; color: #fff; padding: 0.38rem 0.7rem; text-align: left; font-weight: normal; font-variant: small-caps; letter-spacing: 0.05em; white-space: nowrap; position: sticky; top: 0; z-index: 1; }
+        .disambig-table td { padding: 0; border-bottom: 1px solid #e8e0d0; vertical-align: middle; }
+        .disambig-table td > * { padding: 0.28rem 0.7rem; display: block; }
         .disambig-row { cursor: pointer; }
         .disambig-row:hover td { background: #f0ebe0 !important; }
-        .disambig-pick-btn { padding: 0.25rem 0.65rem; font-family: Georgia, serif; font-size: 0.78rem; background: #2c2c2c; color: #fff; border: none; border-radius: 2px; cursor: pointer; white-space: nowrap; }
+        .disambig-pick-btn { padding: 0.22rem 0.6rem; font-family: Georgia, serif; font-size: 0.78rem; background: #2c2c2c; color: #fff; border: none; border-radius: 2px; cursor: pointer; white-space: nowrap; }
         .disambig-pick-btn:hover { background: #444; }
 
         /* ── Expand button ───────────────────────────────────────────────── */
@@ -134,9 +142,14 @@
         .expand-btn { font-family: Georgia, serif; font-size: 0.84rem; font-style: italic; color: #555; background: #fdfaf3; border: 1px solid #d3c9b1; padding: 0.4rem 1.2rem; cursor: pointer; border-radius: 2px; }
         .expand-btn:hover { background: #f5f0e8; border-color: #b0a898; color: #2c2c2c; }
 
+        /* ── Nearby callout ──────────────────────────────────────────────── */
+        .nearby-note { background: #fff8ee; border: 1px solid #ffe0b2; border-left: 4px solid #ff9800; padding: 0.6rem 1rem; font-family: Georgia, serif; font-size: 0.87rem; font-style: italic; color: #5d4037; margin-bottom: 1rem; }
+
+        .ornament { text-align: center; color: #bbb; font-size: 1.2rem; margin: 2rem 0 1.75rem; letter-spacing: 8px; }
+        #content { display: none; }
+
         @media (max-width: 600px) {
             .cards-grid { grid-template-columns: 1fr; }
-            .search-row { flex-direction: column; }
         }
     </style>
 </head>
@@ -162,41 +175,40 @@
 
     <div class="page-header">
         <h2>Connections Explorer</h2>
-        <div class="subtitle">Discover people, places and articles connected to any article, location or person</div>
-        <div class="dataset-meta" id="dataset-meta">Loading dataset…</div>
+        <div class="subtitle">Discover people, places and articles connected to any record — click any result to explore it</div>
+        <div class="dataset-meta" id="dataset-meta">Loading…</div>
     </div>
 
-    <div id="loading-bar">Loading data — this may take a moment…</div>
+    <div id="loading-bar">Loading index data…</div>
     <div id="loading-status"></div>
 
+    <!-- Unified search (no type selector — searches all three simultaneously) -->
     <div id="search-area">
-        <div class="search-area-hdr">Search by article title, location name, or person name</div>
-        <div class="search-row">
-            <select id="search-type">
-                <option value="article">Article</option>
-                <option value="location">Location</option>
-                <option value="person">Person</option>
-            </select>
-            <div class="search-wrap">
-                <input type="text" id="conn-search" placeholder="Type an article title…" autocomplete="off">
-                <div id="conn-dd"></div>
-            </div>
+        <div class="search-area-hdr">Search articles, locations and people</div>
+        <div class="search-wrap">
+            <input type="text" id="conn-search" placeholder="Type any article title, location or person name…" autocomplete="off">
+            <div id="conn-dd"></div>
         </div>
     </div>
 
+    <!-- View toggle -->
     <div id="view-toggle">
         <span class="view-toggle-label">Display as:</span>
         <button class="view-btn active" data-view="card">Cards</button>
         <button class="view-btn" data-view="table">Table</button>
     </div>
 
+    <!-- Shared-name legend -->
     <div id="shared-legend">
-        <div class="shared-swatch"></div>
-        <span><strong>★ Shared name</strong> — these records share an article title, location name, or person name with at least one other connection. They are sorted to the top of each section.</span>
+        <strong style="font-family:Georgia,serif;font-size:0.83rem;">Highlights:</strong>
+        <div class="legend-item"><div class="legend-swatch swatch-name"></div><span>★ Shared name — same person, location or article title appears elsewhere in these connections</span></div>
+        <div class="legend-item"><div class="legend-swatch swatch-article"></div><span>◆ Shared article — same article title links these records</span></div>
+        <div style="font-family:Georgia,serif;font-size:0.78rem;color:#888;font-style:italic;width:100%">Results are sorted by relevance score (shared file, page, article title, name).</div>
     </div>
 
     <div id="placeholder">
-        Search for an article, location or person above to explore its connections across the full dataset.
+        Search for any article, location or person above to explore its connections across the full dataset.<br>
+        <span style="font-size:0.85rem;color:#bbb;">Full data loads progressively — results appear immediately, with more appearing as data loads.</span>
     </div>
 
     <div id="content">
@@ -223,17 +235,14 @@
                     <span id="direct-persons-count">0</span> persons
                 </span>
             </div>
-            <p class="section-note">Records sharing the same source file, or the same page number and date, as the selected record.</p>
+            <p class="section-note">Records sharing the same source file, or the same page number and date. Sorted by relevance.</p>
 
             <div class="sub-section">
                 <div class="sub-section-hdr"><span class="sub-type-dot dot-article"></span>Articles</div>
                 <div class="empty-note" id="direct-articles-empty">No other articles found on this page or file.</div>
                 <div class="cards-grid" id="direct-articles-wrap"></div>
                 <div class="table-view-wrap" id="direct-articles-table">
-                    <table class="conn-table">
-                        <thead><tr><th>Name</th><th>Type</th><th>Detail</th><th>Page</th><th>Date</th><th>Vol/Issue</th><th>File</th><th>Proximity</th></tr></thead>
-                        <tbody id="direct-articles-body"></tbody>
-                    </table>
+                    <table class="conn-table"><thead><tr><th>Name</th><th>Type</th><th>Detail</th><th>Page</th><th>Date</th><th>Vol/Issue</th><th>File</th><th>Proximity</th></tr></thead><tbody id="direct-articles-body"></tbody></table>
                 </div>
             </div>
 
@@ -242,10 +251,7 @@
                 <div class="empty-note" id="direct-locations-empty">No locations found on this page or file.</div>
                 <div class="cards-grid" id="direct-locations-wrap"></div>
                 <div class="table-view-wrap" id="direct-locations-table">
-                    <table class="conn-table">
-                        <thead><tr><th>Name</th><th>Type</th><th>Detail</th><th>Page</th><th>Date</th><th>Vol/Issue</th><th>File</th><th>Proximity</th></tr></thead>
-                        <tbody id="direct-locations-body"></tbody>
-                    </table>
+                    <table class="conn-table"><thead><tr><th>Name</th><th>Type</th><th>Detail</th><th>Page</th><th>Date</th><th>Vol/Issue</th><th>File</th><th>Proximity</th></tr></thead><tbody id="direct-locations-body"></tbody></table>
                 </div>
             </div>
 
@@ -254,10 +260,7 @@
                 <div class="empty-note" id="direct-persons-empty">No people found on this page or file.</div>
                 <div class="cards-grid" id="direct-persons-wrap"></div>
                 <div class="table-view-wrap" id="direct-persons-table">
-                    <table class="conn-table">
-                        <thead><tr><th>Name</th><th>Type</th><th>Detail</th><th>Page</th><th>Date</th><th>Vol/Issue</th><th>File</th><th>Proximity</th></tr></thead>
-                        <tbody id="direct-persons-body"></tbody>
-                    </table>
+                    <table class="conn-table"><thead><tr><th>Name</th><th>Type</th><th>Detail</th><th>Page</th><th>Date</th><th>Vol/Issue</th><th>File</th><th>Proximity</th></tr></thead><tbody id="direct-persons-body"></tbody></table>
                 </div>
             </div>
         </div>
@@ -275,19 +278,14 @@
                     <span id="nearby-persons-count">0</span> persons
                 </span>
             </div>
-            <div class="nearby-note">
-                These records appear within ±2 pages of the selected record in the dataset. They are not on the same page or file, but may be contextually related. Each entry is labelled with its proximity.
-            </div>
+            <div class="nearby-note">Records within ±2 pages of the selected record. Not on the same page or file, but may be contextually related. Each entry shows its proximity.</div>
 
             <div class="sub-section">
                 <div class="sub-section-hdr"><span class="sub-type-dot dot-article"></span>Nearby articles</div>
                 <div class="empty-note" id="nearby-articles-empty">No nearby articles found within ±2 pages.</div>
                 <div class="cards-grid" id="nearby-articles-wrap"></div>
                 <div class="table-view-wrap" id="nearby-articles-table">
-                    <table class="conn-table">
-                        <thead><tr><th>Name</th><th>Type</th><th>Detail</th><th>Page</th><th>Date</th><th>Vol/Issue</th><th>File</th><th>Proximity</th></tr></thead>
-                        <tbody id="nearby-articles-body"></tbody>
-                    </table>
+                    <table class="conn-table"><thead><tr><th>Name</th><th>Type</th><th>Detail</th><th>Page</th><th>Date</th><th>Vol/Issue</th><th>File</th><th>Proximity</th></tr></thead><tbody id="nearby-articles-body"></tbody></table>
                 </div>
             </div>
 
@@ -296,10 +294,7 @@
                 <div class="empty-note" id="nearby-locations-empty">No nearby locations found within ±2 pages.</div>
                 <div class="cards-grid" id="nearby-locations-wrap"></div>
                 <div class="table-view-wrap" id="nearby-locations-table">
-                    <table class="conn-table">
-                        <thead><tr><th>Name</th><th>Type</th><th>Detail</th><th>Page</th><th>Date</th><th>Vol/Issue</th><th>File</th><th>Proximity</th></tr></thead>
-                        <tbody id="nearby-locations-body"></tbody>
-                    </table>
+                    <table class="conn-table"><thead><tr><th>Name</th><th>Type</th><th>Detail</th><th>Page</th><th>Date</th><th>Vol/Issue</th><th>File</th><th>Proximity</th></tr></thead><tbody id="nearby-locations-body"></tbody></table>
                 </div>
             </div>
 
@@ -308,10 +303,7 @@
                 <div class="empty-note" id="nearby-persons-empty">No nearby people found within ±2 pages.</div>
                 <div class="cards-grid" id="nearby-persons-wrap"></div>
                 <div class="table-view-wrap" id="nearby-persons-table">
-                    <table class="conn-table">
-                        <thead><tr><th>Name</th><th>Type</th><th>Detail</th><th>Page</th><th>Date</th><th>Vol/Issue</th><th>File</th><th>Proximity</th></tr></thead>
-                        <tbody id="nearby-persons-body"></tbody>
-                    </table>
+                    <table class="conn-table"><thead><tr><th>Name</th><th>Type</th><th>Detail</th><th>Page</th><th>Date</th><th>Vol/Issue</th><th>File</th><th>Proximity</th></tr></thead><tbody id="nearby-persons-body"></tbody></table>
                 </div>
             </div>
         </div>
