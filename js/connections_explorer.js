@@ -2,6 +2,9 @@
 // Loads articles, locations and persons JSON files, then finds connections
 // between records that share the same filename OR same page_number + date.
 // Nearby-page connections (±2 pages) are also surfaced and flagged.
+// Supports searching by article title, location name, or person name.
+// Supports card and table display modes.
+// Highlights records whose name appears in multiple connections.
 
 // ── Data paths ────────────────────────────────────────────────────────────────
 
@@ -60,22 +63,30 @@ const PERSON_FILES = [
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
-let DB = {
+const DB = {
   articles:  [],
   locations: [],
   persons:   [],
-  // indexes built after load
-  articlesByFile:  {},  // filename -> [records]
-  articlesByKey:   {},  // "date|page" -> [records]
+  articlesByFile:  {},
+  articlesByKey:   {},
   locationsByFile: {},
   locationsByKey:  {},
   personsByFile:   {},
   personsByKey:    {},
-  // ordered page registry: [{ filename, page_number (int), date }, ...]
-  pageRegistry: [],
+  pageRegistry:    [],
 };
 
-let selectedArticle = null; // the chosen anchor article record
+let articleIndex  = [];
+let locationIndex = [];
+let personIndex   = [];
+
+let anchor     = null;
+let anchorType = null;
+let viewMode   = 'card';
+
+let sharedArticleTitles = new Set();
+let sharedLocationNames = new Set();
+let sharedPersonNames   = new Set();
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -84,68 +95,45 @@ function cleanJSON(text) {
 }
 
 function loadFile(url) {
-  return fetch(url)
-    .then(r => r.text())
-    .then(t => JSON.parse(cleanJSON(t)))
-    .catch(() => []);
+  return fetch(url).then(r => r.text()).then(t => JSON.parse(cleanJSON(t))).catch(() => []);
 }
 
-function pageKey(date, page) {
-  return `${date||''}|${page||''}`;
-}
+function pageKey(date, page) { return `${date || ''}|${page || ''}`; }
 
 function buildIndex(records, byFile, byKey) {
   records.forEach(r => {
     const fn = r.filename || '';
-    if (fn) {
-      if (!byFile[fn]) byFile[fn] = [];
-      byFile[fn].push(r);
-    }
+    if (fn) { if (!byFile[fn]) byFile[fn] = []; byFile[fn].push(r); }
     const k = pageKey(r.date, r.page_number);
-    if (k !== '|') {
-      if (!byKey[k]) byKey[k] = [];
-      byKey[k].push(r);
-    }
+    if (k !== '|') { if (!byKey[k]) byKey[k] = []; byKey[k].push(r); }
   });
 }
 
-// Build a sorted list of distinct (filename, page_number, date) tuples
-// so we can find ±2 page neighbours.
 function buildPageRegistry() {
   const seen = new Set();
-  const all  = [...DB.articles, ...DB.locations, ...DB.persons];
-  all.forEach(r => {
-    const fn  = r.filename || '';
-    const pg  = parseInt(r.page_number, 10);
-    const dt  = r.date || '';
+  [...DB.articles, ...DB.locations, ...DB.persons].forEach(r => {
+    const fn = r.filename || '', pg = parseInt(r.page_number, 10), dt = r.date || '';
     if (!fn || isNaN(pg)) return;
     const key = `${fn}|${pg}|${dt}`;
-    if (!seen.has(key)) {
-      seen.add(key);
-      DB.pageRegistry.push({ filename: fn, page: pg, date: dt });
-    }
+    if (!seen.has(key)) { seen.add(key); DB.pageRegistry.push({ filename: fn, page: pg, date: dt }); }
   });
-  // Sort by date then by filename then by page
   DB.pageRegistry.sort((a, b) => {
-    if (a.date < b.date) return -1;
-    if (a.date > b.date) return  1;
-    if (a.filename < b.filename) return -1;
-    if (a.filename > b.filename) return  1;
+    if (a.date < b.date) return -1; if (a.date > b.date) return 1;
+    if (a.filename < b.filename) return -1; if (a.filename > b.filename) return 1;
     return a.page - b.page;
   });
 }
 
-// Given an anchor article, find nearby pages (±2) in the registry
-function nearbyPages(anchor, radius = 2) {
-  const anchorFn  = anchor.filename || '';
-  const anchorPg  = parseInt(anchor.page_number, 10);
+function dedup(arr) {
+  const seen = new Set();
+  return arr.filter(r => { if (seen.has(r)) return false; seen.add(r); return true; });
+}
 
-  // Find index in registry where filename matches and page is closest
-  const idx = DB.pageRegistry.findIndex(
-    r => r.filename === anchorFn && r.page === anchorPg
-  );
+function nearbyPages(radius = 2) {
+  const fn = anchor.filename || '';
+  const pg = parseInt(anchor.page_number, 10);
+  const idx = DB.pageRegistry.findIndex(r => r.filename === fn && r.page === pg);
   if (idx === -1) return [];
-
   const results = [];
   for (let d = -radius; d <= radius; d++) {
     if (d === 0) continue;
@@ -156,60 +144,74 @@ function nearbyPages(anchor, radius = 2) {
   return results;
 }
 
-// ── Search / autocomplete ─────────────────────────────────────────────────────
+// ── Search index construction ─────────────────────────────────────────────────
 
-let searchIndex = []; // {label, record} — deduplicated article titles
-
-function buildSearchIndex() {
-  const seen = new Set();
+function buildSearchIndexes() {
+  const seenA = new Set();
   DB.articles.forEach(r => {
     const t = (r.article_title || '').trim();
-    if (!t || seen.has(t)) return;
-    seen.add(t);
-    searchIndex.push({ label: t, record: r });
+    if (!t || seenA.has(t)) return; seenA.add(t);
+    articleIndex.push({ label: t, subLabel: `${r.date || ''} · ${r.volume_issue || ''}`, record: r });
   });
-  searchIndex.sort((a, b) => a.label.localeCompare(b.label));
+  articleIndex.sort((a, b) => a.label.localeCompare(b.label));
+
+  const seenL = new Set();
+  DB.locations.forEach(r => {
+    const t = (r.location_entry || '').trim();
+    if (!t || seenL.has(t)) return; seenL.add(t);
+    locationIndex.push({ label: t, subLabel: r.location_standardised || '', record: r });
+  });
+  locationIndex.sort((a, b) => a.label.localeCompare(b.label));
+
+  const seenP = new Set();
+  DB.persons.forEach(r => {
+    const t = (r.standardised_name || r.person_entry || '').trim();
+    if (!t || seenP.has(t)) return; seenP.add(t);
+    personIndex.push({ label: t, subLabel: `${r.role || ''}${r.associated_organisation ? ' · ' + r.associated_organisation : ''}`, record: r });
+  });
+  personIndex.sort((a, b) => a.label.localeCompare(b.label));
 }
 
-function getMatches(q) {
+function getMatches(q, index) {
   if (!q || q.length < 2) return { sw: [], inc: [] };
   const ql = q.toLowerCase();
-  const sw  = searchIndex.filter(e => e.label.toLowerCase().startsWith(ql)).slice(0, 60);
-  const inc = searchIndex.filter(e => !e.label.toLowerCase().startsWith(ql) && e.label.toLowerCase().includes(ql)).slice(0, 60);
-  return { sw, inc };
+  return {
+    sw:  index.filter(e =>  e.label.toLowerCase().startsWith(ql)).slice(0, 50),
+    inc: index.filter(e => !e.label.toLowerCase().startsWith(ql) && e.label.toLowerCase().includes(ql)).slice(0, 50),
+  };
 }
 
 // ── Dropdown ──────────────────────────────────────────────────────────────────
 
 function attachDropdown() {
-  const input = document.getElementById('article-search');
-  const dd    = document.getElementById('article-dd');
-  let active  = -1;
+  const input    = document.getElementById('conn-search');
+  const dd       = document.getElementById('conn-dd');
+  const typesSel = document.getElementById('search-type');
+  let active     = -1;
 
+  function currentIndex() {
+    const t = typesSel.value;
+    return t === 'location' ? locationIndex : t === 'person' ? personIndex : articleIndex;
+  }
   function items() { return [...dd.querySelectorAll('.dd-item')]; }
 
   function show(q) {
-    const { sw, inc } = getMatches(q);
+    const type = typesSel.value;
+    const { sw, inc } = getMatches(q, currentIndex());
     dd.innerHTML = ''; active = -1;
     if (!sw.length && !inc.length) { dd.style.display = 'none'; return; }
 
     function addGroup(label) {
-      const div = document.createElement('div');
-      div.className = 'dd-group-label';
-      div.textContent = label;
-      dd.appendChild(div);
+      const div = document.createElement('div'); div.className = 'dd-group-label'; div.textContent = label; dd.appendChild(div);
     }
     function addItem(entry) {
-      const div = document.createElement('div');
-      div.className = 'dd-item';
-      div.innerHTML = `<span class="dd-title">${entry.label}</span>
-        <span class="dd-meta">${entry.record.date || ''} · ${entry.record.volume_issue || ''}</span>`;
-      div.addEventListener('mousedown', e => { e.preventDefault(); pickArticle(entry.record); });
+      const div = document.createElement('div'); div.className = 'dd-item';
+      div.innerHTML = `<span class="dd-title">${entry.label}</span><span class="dd-meta">${entry.subLabel}</span>`;
+      div.addEventListener('mousedown', e => { e.preventDefault(); pickAnchor(entry.record, type); });
       dd.appendChild(div);
     }
-
-    if (sw.length) { if (inc.length) addGroup(`Starting with "${q}"`); sw.forEach(addItem); }
-    if (inc.length) { if (sw.length) addGroup(`Also containing "${q}"`); inc.forEach(addItem); }
+    if (sw.length)  { if (inc.length) addGroup(`Starting with "${q}"`); sw.forEach(addItem); }
+    if (inc.length) { if (sw.length)  addGroup(`Also containing "${q}"`); inc.forEach(addItem); }
     dd.style.display = 'block';
   }
 
@@ -218,205 +220,281 @@ function attachDropdown() {
   input.addEventListener('blur',   () => setTimeout(() => { dd.style.display = 'none'; }, 150));
   input.addEventListener('keydown', e => {
     const its = items();
-    if (e.key === 'ArrowDown') { active = Math.min(active + 1, its.length - 1); its.forEach((el, i) => el.classList.toggle('active', i === active)); }
-    else if (e.key === 'ArrowUp') { active = Math.max(active - 1, 0); its.forEach((el, i) => el.classList.toggle('active', i === active)); }
-    else if (e.key === 'Enter' && active >= 0) { const t = its[active].querySelector('.dd-title'); if (t) pickArticle(searchIndex.find(e => e.label === t.textContent)?.record); }
-    else if (e.key === 'Escape') { dd.style.display = 'none'; }
+    if      (e.key === 'ArrowDown')              { active = Math.min(active + 1, its.length - 1); its.forEach((el, i) => el.classList.toggle('active', i === active)); }
+    else if (e.key === 'ArrowUp')                { active = Math.max(active - 1, 0); its.forEach((el, i) => el.classList.toggle('active', i === active)); }
+    else if (e.key === 'Enter' && active >= 0)   { its[active].dispatchEvent(new MouseEvent('mousedown')); }
+    else if (e.key === 'Escape')                 { dd.style.display = 'none'; }
+  });
+  typesSel.addEventListener('change', () => {
+    const ph = { article: 'Type an article title…', location: 'Type a location name…', person: 'Type a person name…' };
+    input.placeholder = ph[typesSel.value] || 'Search…';
+    input.value = ''; dd.style.display = 'none';
   });
 }
 
-// ── Core: pick article & render connections ───────────────────────────────────
+// ── View-mode toggle ──────────────────────────────────────────────────────────
 
-function pickArticle(record) {
-  if (!record) return;
-  selectedArticle = record;
+function attachViewToggle() {
+  document.querySelectorAll('.view-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      viewMode = btn.dataset.view;
+      document.querySelectorAll('.view-btn').forEach(b => b.classList.toggle('active', b === btn));
+      if (anchor) renderConnections();
+    });
+  });
+}
 
-  const input = document.getElementById('article-search');
-  input.value = record.article_title || '';
-  document.getElementById('article-dd').style.display = 'none';
+// ── Anchor selection ──────────────────────────────────────────────────────────
 
+function pickAnchor(record, type) {
+  anchor = record; anchorType = type;
+  const label = type === 'article'  ? (record.article_title  || '')
+              : type === 'location' ? (record.location_entry  || '')
+              :                       (record.standardised_name || record.person_entry || '');
+  document.getElementById('conn-search').value = label;
+  document.getElementById('conn-dd').style.display = 'none';
   renderConnections();
 }
+
+// ── Shared-name computation ───────────────────────────────────────────────────
+
+function nameOf(r, dataType) {
+  if (dataType === 'article')  return (r.article_title  || '').trim();
+  if (dataType === 'location') return (r.location_entry  || '').trim();
+  return (r.standardised_name || r.person_entry || '').trim();
+}
+
+function computeSharedNames(allItems) {
+  // A name is "shared" if the same name string appears in 2+ distinct records
+  // across the full result set (including the anchor).
+  const counts = { article: {}, location: {}, person: {} };
+  const tally = (r, dt) => {
+    const n = nameOf(r, dt);
+    if (n) counts[dt][n] = (counts[dt][n] || 0) + 1;
+  };
+  tally(anchor, anchorType);
+  allItems.forEach(({ record, dataType }) => tally(record, dataType));
+
+  sharedArticleTitles = new Set(Object.keys(counts.article).filter(k  => counts.article[k]  > 1));
+  sharedLocationNames = new Set(Object.keys(counts.location).filter(k => counts.location[k] > 1));
+  sharedPersonNames   = new Set(Object.keys(counts.person).filter(k   => counts.person[k]   > 1));
+}
+
+function isShared(r, dataType) {
+  if (dataType === 'article')  return sharedArticleTitles.has(nameOf(r, 'article'));
+  if (dataType === 'location') return sharedLocationNames.has(nameOf(r, 'location'));
+  return sharedPersonNames.has(nameOf(r, 'person'));
+}
+
+// ── Main render ───────────────────────────────────────────────────────────────
 
 function renderConnections() {
   document.getElementById('placeholder').style.display = 'none';
   document.getElementById('content').style.display     = 'block';
 
-  const anchor = selectedArticle;
+  document.getElementById('anchor-card').innerHTML = buildAnchorCard();
 
-  // ── Anchor card ────────────────────────────────────────────────────────────
-  document.getElementById('anchor-card').innerHTML = buildArticleCard(anchor, 'anchor');
-
-  // ── Direct connections (same filename) ────────────────────────────────────
-  const sameFile = anchor.filename || '';
-  const directArticles  = (DB.articlesByFile[sameFile]  || []).filter(r => r !== anchor);
-  const directLocations = (DB.locationsByFile[sameFile] || []);
-  const directPersons   = (DB.personsByFile[sameFile]   || []);
-
-  // Also same page_number + date (may overlap with filename match)
+  const fn  = anchor.filename || '';
   const dpk = pageKey(anchor.date, anchor.page_number);
-  const pgArticles  = (DB.articlesByKey[dpk]  || []).filter(r => r !== anchor && !directArticles.includes(r));
-  const pgLocations = (DB.locationsByKey[dpk] || []).filter(r => !directLocations.includes(r));
-  const pgPersons   = (DB.personsByKey[dpk]   || []).filter(r => !directPersons.includes(r));
 
-  const allDirectArticles  = [...directArticles,  ...pgArticles];
-  const allDirectLocations = [...directLocations, ...pgLocations];
-  const allDirectPersons   = [...directPersons,   ...pgPersons];
+  const directArticles  = dedup([...(DB.articlesByFile[fn]  || []), ...(DB.articlesByKey[dpk]  || [])]).filter(r => r !== anchor);
+  const directLocations = dedup([...(DB.locationsByFile[fn] || []), ...(DB.locationsByKey[dpk] || [])]).filter(r => anchorType !== 'location' || r !== anchor);
+  const directPersons   = dedup([...(DB.personsByFile[fn]   || []), ...(DB.personsByKey[dpk]   || [])]).filter(r => anchorType !== 'person'   || r !== anchor);
 
-  renderSection('direct-articles-body',  allDirectArticles,  'article',  false);
-  renderSection('direct-locations-body', allDirectLocations, 'location', false);
-  renderSection('direct-persons-body',   allDirectPersons,   'person',   false);
-
-  updateCount('direct-articles-count',  allDirectArticles.length);
-  updateCount('direct-locations-count', allDirectLocations.length);
-  updateCount('direct-persons-count',   allDirectPersons.length);
-
-  // ── Nearby connections (±2 pages) ─────────────────────────────────────────
-  const nearby = nearbyPages(anchor, 2);
-  const nearbyArticles  = [];
-  const nearbyLocations = [];
-  const nearbyPersons   = [];
+  const nearby = nearbyPages(2);
+  const nearbyArticles = [], nearbyLocations = [], nearbyPersons = [];
+  const seenA = new Set([...directArticles, anchor]);
+  const seenL = new Set([...directLocations, ...(anchorType === 'location' ? [anchor] : [])]);
+  const seenP = new Set([...directPersons,   ...(anchorType === 'person'   ? [anchor] : [])]);
 
   nearby.forEach(np => {
     const nfn  = np.filename;
     const nkey = pageKey(np.date, np.page);
-    const tag  = np.offset < 0 ? `${Math.abs(np.offset)} page${Math.abs(np.offset)>1?'s':''} before` : `${np.offset} page${np.offset>1?'s':''} after`;
+    const tag  = np.offset < 0
+      ? `${Math.abs(np.offset)} page${Math.abs(np.offset) > 1 ? 's' : ''} before`
+      : `${np.offset} page${np.offset > 1 ? 's' : ''} after`;
 
-    function collect(byFile, byKey, target, seenDirect) {
-      const fromFile = (byFile[nfn] || []).filter(r => !seenDirect.includes(r));
-      const fromKey  = (byKey[nkey]  || []).filter(r => !seenDirect.includes(r) && !fromFile.includes(r));
-      [...fromFile, ...fromKey].forEach(r => target.push({ record: r, tag }));
-    }
-
-    collect(DB.articlesByFile,  DB.articlesByKey,  nearbyArticles,  [...allDirectArticles,  anchor]);
-    collect(DB.locationsByFile, DB.locationsByKey, nearbyLocations, allDirectLocations);
-    collect(DB.personsByFile,   DB.personsByKey,   nearbyPersons,   allDirectPersons);
+    dedup([...(DB.articlesByFile[nfn]  || []), ...(DB.articlesByKey[nkey]  || [])]).filter(r => !seenA.has(r)).forEach(r => { nearbyArticles.push({ record: r, tag }); seenA.add(r); });
+    dedup([...(DB.locationsByFile[nfn] || []), ...(DB.locationsByKey[nkey] || [])]).filter(r => !seenL.has(r)).forEach(r => { nearbyLocations.push({ record: r, tag }); seenL.add(r); });
+    dedup([...(DB.personsByFile[nfn]   || []), ...(DB.personsByKey[nkey]   || [])]).filter(r => !seenP.has(r)).forEach(r => { nearbyPersons.push({ record: r, tag }); seenP.add(r); });
   });
 
-  renderNearbySection('nearby-articles-body',  nearbyArticles,  'article');
-  renderNearbySection('nearby-locations-body', nearbyLocations, 'location');
-  renderNearbySection('nearby-persons-body',   nearbyPersons,   'person');
+  // Compute shared names across everything
+  const allItems = [
+    ...directArticles.map(r  => ({ record: r, dataType: 'article'  })),
+    ...directLocations.map(r => ({ record: r, dataType: 'location' })),
+    ...directPersons.map(r   => ({ record: r, dataType: 'person'   })),
+    ...nearbyArticles.map(({ record: r })  => ({ record: r, dataType: 'article'  })),
+    ...nearbyLocations.map(({ record: r }) => ({ record: r, dataType: 'location' })),
+    ...nearbyPersons.map(({ record: r })   => ({ record: r, dataType: 'person'   })),
+  ];
+  computeSharedNames(allItems);
 
+  // Apply view mode wrappers
+  applyViewContainers();
+
+  renderSubSection('direct-articles',  directArticles,  'article');
+  renderSubSection('direct-locations', directLocations, 'location');
+  renderSubSection('direct-persons',   directPersons,   'person');
+  renderNearbySubSection('nearby-articles',  nearbyArticles,  'article');
+  renderNearbySubSection('nearby-locations', nearbyLocations, 'location');
+  renderNearbySubSection('nearby-persons',   nearbyPersons,   'person');
+
+  updateCount('direct-articles-count',  directArticles.length);
+  updateCount('direct-locations-count', directLocations.length);
+  updateCount('direct-persons-count',   directPersons.length);
   updateCount('nearby-articles-count',  nearbyArticles.length);
   updateCount('nearby-locations-count', nearbyLocations.length);
   updateCount('nearby-persons-count',   nearbyPersons.length);
 
-  // Show/hide empty states
-  toggleEmpty('direct-articles-empty',  allDirectArticles.length  === 0);
-  toggleEmpty('direct-locations-empty', allDirectLocations.length === 0);
-  toggleEmpty('direct-persons-empty',   allDirectPersons.length   === 0);
-  toggleEmpty('nearby-articles-empty',  nearbyArticles.length     === 0);
-  toggleEmpty('nearby-locations-empty', nearbyLocations.length    === 0);
-  toggleEmpty('nearby-persons-empty',   nearbyPersons.length      === 0);
+  toggleEmpty('direct-articles-empty',  directArticles.length  === 0);
+  toggleEmpty('direct-locations-empty', directLocations.length === 0);
+  toggleEmpty('direct-persons-empty',   directPersons.length   === 0);
+  toggleEmpty('nearby-articles-empty',  nearbyArticles.length  === 0);
+  toggleEmpty('nearby-locations-empty', nearbyLocations.length === 0);
+  toggleEmpty('nearby-persons-empty',   nearbyPersons.length   === 0);
+
+  const hasShared = sharedArticleTitles.size || sharedLocationNames.size || sharedPersonNames.size;
+  document.getElementById('shared-legend').style.display = hasShared ? 'flex' : 'none';
 }
 
-function updateCount(id, n) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = n;
+function applyViewContainers() {
+  const ids = ['direct-articles','direct-locations','direct-persons','nearby-articles','nearby-locations','nearby-persons'];
+  ids.forEach(id => {
+    const tableWrap = document.getElementById(`${id}-table`); // .table-view-wrap div
+    const cardsWrap = document.getElementById(`${id}-wrap`);  // .cards-grid div
+    if (!tableWrap || !cardsWrap) return;
+    tableWrap.style.display = viewMode === 'table' ? '' : 'none';
+    cardsWrap.style.display = viewMode === 'table' ? 'none' : '';
+  });
 }
 
-function toggleEmpty(id, show) {
-  const el = document.getElementById(id);
-  if (el) el.style.display = show ? 'block' : 'none';
+function updateCount(id, n) { const el = document.getElementById(id); if (el) el.textContent = n; }
+function toggleEmpty(id, show) { const el = document.getElementById(id); if (el) el.style.display = show ? 'block' : 'none'; }
+
+// ── Sub-section renderers ─────────────────────────────────────────────────────
+
+function sharedFirst(records, dataType) {
+  return [...records].sort((a, b) => (isShared(a, dataType) ? 0 : 1) - (isShared(b, dataType) ? 0 : 1));
 }
 
-// ── Card builders ─────────────────────────────────────────────────────────────
+function renderSubSection(id, records, dataType) {
+  const tbody  = document.getElementById(`${id}-body`);
+  const wrap   = document.getElementById(`${id}-wrap`);
+  if (!tbody || !wrap) return;
+  const sorted = sharedFirst(records, dataType);
+  if (viewMode === 'table') {
+    tbody.innerHTML = sorted.map(r => buildTableRow(r, dataType, null, isShared(r, dataType))).join('');
+  } else {
+    wrap.innerHTML = sorted.map(r => buildCard(r, dataType, null, isShared(r, dataType))).join('');
+  }
+}
+
+function renderNearbySubSection(id, items, dataType) {
+  const tbody = document.getElementById(`${id}-body`);
+  const wrap  = document.getElementById(`${id}-wrap`);
+  if (!tbody || !wrap) return;
+  const sorted = [...items].sort((a, b) => (isShared(a.record, dataType) ? 0 : 1) - (isShared(b.record, dataType) ? 0 : 1));
+  if (viewMode === 'table') {
+    tbody.innerHTML = sorted.map(({ record: r, tag }) => buildTableRow(r, dataType, tag, isShared(r, dataType))).join('');
+  } else {
+    wrap.innerHTML = sorted.map(({ record: r, tag }) => buildCard(r, dataType, tag, isShared(r, dataType))).join('');
+  }
+}
+
+// ── Field helper ──────────────────────────────────────────────────────────────
 
 function field(label, value) {
   if (!value && value !== 0) return '';
   return `<div class="conn-field"><span class="conn-label">${label}</span><span class="conn-value">${value}</span></div>`;
 }
 
-function buildArticleCard(r, cls = '') {
-  return `<div class="conn-card conn-article ${cls}">
-    <div class="conn-card-hdr conn-hdr-article">
-      <span class="conn-type-badge">Article</span>
-      <span class="conn-card-title">${r.article_title || '—'}</span>
+// ── Anchor card ───────────────────────────────────────────────────────────────
+
+function buildAnchorCard() {
+  const r = anchor, type = anchorType;
+  const name = type === 'article'  ? (r.article_title || '—')
+             : type === 'location' ? (r.location_entry || '—')
+             : (r.standardised_name || r.person_entry || '—');
+  let fields = '';
+  if (type === 'article') {
+    fields = field('Type', r.article_type) + field('Page', r.page_number) + field('Date', r.date) + field('Vol/Issue', r.volume_issue) + field('File', r.filename);
+  } else if (type === 'location') {
+    fields = field('Standardised', r.location_standardised) + field('Context', r.brief_context) + field('Article', r.article_title) + field('Page', r.page_number) + field('Date', r.date) + field('Vol/Issue', r.volume_issue) + field('File', r.filename);
+  } else {
+    fields = field('As appears', r.person_entry) + field('Title', r.title) + field('Role', r.role) + field('Organisation', r.associated_organisation) + field('Gender', r.gender) + field('Relation', r.relation) + field('Article', r.article_title) + field('Page', r.page_number) + field('Date', r.date) + field('Vol/Issue', r.volume_issue) + field('File', r.filename);
+  }
+  return `<div class="conn-card conn-${type} anchor-card-full">
+    <div class="conn-card-hdr conn-hdr-${type}">
+      <span class="conn-type-badge">${type.charAt(0).toUpperCase() + type.slice(1)}</span>
+      <span class="conn-card-title">${name}</span>
     </div>
-    <div class="conn-card-body">
-      ${field('Type',   r.article_type)}
-      ${field('Page',   r.page_number)}
-      ${field('Date',   r.date)}
-      ${field('Vol/Issue', r.volume_issue)}
-      ${field('File',   r.filename)}
-    </div>
+    <div class="conn-card-body">${fields}</div>
   </div>`;
 }
 
-function buildLocationCard(r) {
-  return `<div class="conn-card conn-location">
-    <div class="conn-card-hdr conn-hdr-location">
-      <span class="conn-type-badge">Location</span>
-      <span class="conn-card-title">${r.location_entry || '—'}</span>
+// ── Card builder ──────────────────────────────────────────────────────────────
+
+function buildCard(r, dataType, proximityTag, shared) {
+  let title = '', fields = '';
+  if (dataType === 'article') {
+    title  = r.article_title || '—';
+    fields = field('Type', r.article_type) + field('Page', r.page_number) + field('Date', r.date) + field('Vol/Issue', r.volume_issue) + field('File', r.filename);
+  } else if (dataType === 'location') {
+    title  = r.location_entry || '—';
+    fields = field('Standardised', r.location_standardised) + field('Context', r.brief_context) + field('Article', r.article_title) + field('Page', r.page_number) + field('Date', r.date) + field('Vol/Issue', r.volume_issue) + field('File', r.filename) + (r.brief_extract ? `<details class="conn-extract"><summary>View extract</summary><p>${r.brief_extract}</p></details>` : '');
+  } else {
+    title  = r.standardised_name || r.person_entry || '—';
+    fields = field('As appears', r.person_entry) + field('Title', r.title) + field('Role', r.role) + field('Organisation', r.associated_organisation) + field('Gender', r.gender) + field('Relation', r.relation) + field('Depicted', r.depicted) + field('Article', r.article_title) + field('Page', r.page_number) + field('Date', r.date) + field('Vol/Issue', r.volume_issue) + field('File', r.filename) + (r.brief_extract ? `<details class="conn-extract"><summary>View extract</summary><p>${r.brief_extract}</p></details>` : '');
+  }
+  const proximityHtml = proximityTag ? `<div class="proximity-tag">📍 ${proximityTag}</div>` : '';
+  const sharedBanner  = shared ? `<div class="shared-banner">★ Shared name</div>` : '';
+  return `<div class="conn-card conn-${dataType}${shared ? ' conn-shared' : ''}">
+    <div class="conn-card-hdr conn-hdr-${dataType}">
+      <span class="conn-type-badge">${dataType.charAt(0).toUpperCase() + dataType.slice(1)}</span>
+      <span class="conn-card-title">${title}</span>
     </div>
-    <div class="conn-card-body">
-      ${field('Standardised', r.location_standardised)}
-      ${field('Context',      r.brief_context)}
-      ${field('Article',      r.article_title)}
-      ${field('Page',         r.page_number)}
-      ${field('Date',         r.date)}
-      ${field('Vol/Issue',    r.volume_issue)}
-      ${field('File',         r.filename)}
-      ${r.brief_extract ? `<details class="conn-extract"><summary>View extract</summary><p>${r.brief_extract}</p></details>` : ''}
-    </div>
+    <div class="conn-card-body">${proximityHtml}${sharedBanner}${fields}</div>
   </div>`;
 }
 
-function buildPersonCard(r) {
-  return `<div class="conn-card conn-person">
-    <div class="conn-card-hdr conn-hdr-person">
-      <span class="conn-type-badge">Person</span>
-      <span class="conn-card-title">${r.standardised_name || r.person_entry || '—'}</span>
-    </div>
-    <div class="conn-card-body">
-      ${field('As appears',  r.person_entry)}
-      ${field('Title',       r.title)}
-      ${field('Role',        r.role)}
-      ${field('Organisation',r.associated_organisation)}
-      ${field('Gender',      r.gender)}
-      ${field('Relation',    r.relation)}
-      ${field('Depicted',    r.depicted)}
-      ${field('Article',     r.article_title)}
-      ${field('Page',        r.page_number)}
-      ${field('Date',        r.date)}
-      ${field('Vol/Issue',   r.volume_issue)}
-      ${field('File',        r.filename)}
-      ${r.brief_extract ? `<details class="conn-extract"><summary>View extract</summary><p>${r.brief_extract}</p></details>` : ''}
-    </div>
-  </div>`;
-}
+// ── Table row builder ─────────────────────────────────────────────────────────
 
-function buildCard(r, type) {
-  if (type === 'article')  return buildArticleCard(r);
-  if (type === 'location') return buildLocationCard(r);
-  if (type === 'person')   return buildPersonCard(r);
-  return '';
-}
+function buildTableRow(r, dataType, proximityTag, shared) {
+  const sharedCls  = shared ? ' class="shared-row"' : '';
+  const sharedStar = shared ? '★ ' : '';
+  const typeLabel  = dataType.charAt(0).toUpperCase() + dataType.slice(1);
+  const proximity  = proximityTag ? `<span class="proximity-tag">📍 ${proximityTag}</span>` : '';
 
-// ── Section renderers ─────────────────────────────────────────────────────────
+  let name = '', detail = '';
+  if (dataType === 'article') {
+    name   = r.article_title || '';
+    detail = r.article_type  || '';
+  } else if (dataType === 'location') {
+    name   = r.location_entry        || '';
+    detail = r.location_standardised || '';
+  } else {
+    name   = r.standardised_name || r.person_entry || '';
+    detail = [r.role, r.associated_organisation].filter(Boolean).join(' · ');
+  }
 
-function renderSection(bodyId, records, type, nearby) {
-  const el = document.getElementById(bodyId);
-  if (!el) return;
-  el.innerHTML = records.map(r => buildCard(r, type)).join('');
-}
-
-function renderNearbySection(bodyId, items, type) {
-  const el = document.getElementById(bodyId);
-  if (!el) return;
-  el.innerHTML = items.map(({ record, tag }) => {
-    const card = buildCard(record, type);
-    // inject the proximity tag
-    return card.replace('class="conn-card-body"',
-      `class="conn-card-body"><div class="proximity-tag">📍 ${tag}</div>`);
-  }).join('');
+  return `<tr${sharedCls}>
+    <td>${sharedStar}${name}</td>
+    <td>${typeLabel}</td>
+    <td>${detail}</td>
+    <td>${r.page_number  || ''}</td>
+    <td>${r.date         || ''}</td>
+    <td>${r.volume_issue || ''}</td>
+    <td>${r.filename     || ''}</td>
+    <td>${proximity}</td>
+  </tr>`;
 }
 
 // ── Load ──────────────────────────────────────────────────────────────────────
 
 async function loadAll() {
   document.getElementById('loading-bar').style.display = 'block';
-  document.getElementById('loading-status').textContent = 'Loading articles…';
+  document.getElementById('loading-status').textContent = 'Loading data…';
 
   const [articleArrays, locationArrays, personArrays] = await Promise.all([
     Promise.all(ARTICLE_FILES.map(loadFile)),
@@ -434,20 +512,18 @@ async function loadAll() {
   buildIndex(DB.locations, DB.locationsByFile, DB.locationsByKey);
   buildIndex(DB.persons,   DB.personsByFile,   DB.personsByKey);
   buildPageRegistry();
-  buildSearchIndex();
-
-  const nA = DB.articles.length;
-  const nL = DB.locations.length;
-  const nP = DB.persons.length;
+  buildSearchIndexes();
 
   document.getElementById('dataset-meta').textContent =
-    `${nA.toLocaleString()} articles · ${nL.toLocaleString()} locations · ${nP.toLocaleString()} persons`;
+    `${DB.articles.length.toLocaleString()} articles · ${DB.locations.length.toLocaleString()} locations · ${DB.persons.length.toLocaleString()} persons`;
 
-  document.getElementById('loading-bar').style.display = 'none';
-  document.getElementById('loading-status').textContent = '';
-  document.getElementById('search-area').style.display = 'block';
+  document.getElementById('loading-bar').style.display  = 'none';
+  document.getElementById('loading-status').textContent  = '';
+  document.getElementById('search-area').style.display   = 'block';
+  document.getElementById('view-toggle').style.display   = 'flex';
 
   attachDropdown();
+  attachViewToggle();
 }
 
 loadAll().catch(err => {
