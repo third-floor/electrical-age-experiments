@@ -12,15 +12,69 @@
 
 const BASE = 'assets/data_date/';
 
-// Files grouped so we can lazy-load. Pre-1936 vols always loaded immediately
-// (they're few). Year files are loaded in batches on first search.
+// Vol files loaded immediately on startup (small).
+// Year files are loaded lazily in batches on first search.
 const VOL_FILES = {
   articles:  ['articlesvol1.json',  'articlesvol2.json' ],
   locations: ['locationsvol1.json', 'locationsvol2.json'],
   persons:   ['personsvol1.json',   'personsvol2.json'  ],
 };
 
-const YEARS = Array.from({ length: 51 }, (_, i) => 1936 + i); // 1936-1986
+// Explicit year file lists — one entry per known JSON file.
+const ARTICLE_YEAR_FILES = [
+  'articles1936v1.json','articles1937v1.json','articles1938v1.json','articles1939v1.json',
+  'articles1940v1.json','articles1941v1.json','articles1942v1.json','articles1943v1.json',
+  'articles1944v1.json','articles1945v1.json','articles1946v1.json','articles1947v1.json',
+  'articles1948v1.json','articles1949v1.json','articles1950v1.json','articles1951v1.json',
+  'articles1952v1.json','articles1953v1.json','articles1954v1.json','articles1955v1.json',
+  'articles1956v1.json','articles1957v1.json','articles1958v1.json','articles1959v1.json',
+  'articles1960v1.json','articles1961v1.json','articles1962v1.json','articles1963v1.json',
+  'articles1964v1.json','articles1965v1.json','articles1966v1.json','articles1967v1.json',
+  'articles1968v1.json','articles1969v1.json','articles1970v1.json','articles1971v1.json',
+  'articles1972v1.json','articles1973v1.json','articles1974v1.json','articles1975v1.json',
+  'articles1976v1.json','articles1977v1.json','articles1978v1.json','articles1979v1.json',
+  'articles1980v1.json','articles1981v1.json','articles1982v1.json','articles1983v1.json',
+  'articles1984v1.json','articles1985v1.json','articles1986v1.json',
+];
+
+const LOCATION_YEAR_FILES = [
+  'locations1936v1.json','locations1937v1.json','locations1938v1.json','locations1939v1.json',
+  'locations1940v1.json','locations1941v1.json','locations1942v1.json','locations1943v1.json',
+  'locations1944v1.json','locations1945v1.json','locations1946v1.json','locations1947v1.json',
+  'locations1948v1.json','locations1949v1.json','locations1950v1.json','locations1951v1.json',
+  'locations1952v1.json','locations1953v1.json','locations1954v1.json','locations1955v1.json',
+  'locations1956v1.json','locations1957v1.json','locations1958v1.json','locations1959v1.json',
+  'locations1960v1.json','locations1961v1.json','locations1962v1.json','locations1963v1.json',
+  'locations1964v1.json','locations1965v1.json','locations1966v1.json','locations1967v1.json',
+  'locations1968v1.json','locations1969v1.json','locations1970v1.json','locations1971v1.json',
+  'locations1972v1.json','locations1973v1.json','locations1974v1.json','locations1975v1.json',
+  'locations1976v1.json','locations1977v1.json','locations1978v1.json','locations1979v1.json',
+  'locations1980v1.json','locations1981v1.json','locations1982v1.json','locations1983v1.json',
+  'locations1984v1.json','locations1985v1.json','locations1986v1.json',
+];
+
+const PERSON_YEAR_FILES = [
+  'persons1936v1.json','persons1937v1.json','persons1938v1.json','persons1939v1.json',
+  'persons1940v1.json','persons1941v1.json','persons1942v1.json','persons1943v1.json',
+  'persons1944v1.json','persons1945v1.json','persons1946v1.json','persons1947v1.json',
+  'persons1948v1.json','persons1949v1.json','persons1950v1.json','persons1951v1.json',
+  'persons1952v1.json','persons1953v1.json','persons1954v1.json','persons1955v1.json',
+  'persons1956v1.json','persons1957v1.json','persons1958v1.json','persons1959v1.json',
+  'persons1960v1.json','persons1961v1.json','persons1962v1.json','persons1963v1.json',
+  'persons1964v1.json','persons1965v1.json','persons1966v1.json','persons1967v1.json',
+  'persons1968v1.json','persons1969v1.json','persons1970v1.json','persons1971v1.json',
+  'persons1972v1.json','persons1973v1.json','persons1974v1.json','persons1975v1.json',
+  'persons1976v1.json','persons1977v1.json','persons1978v1.json','persons1979v1.json',
+  'persons1980v1.json','persons1981v1.json','persons1982v1.json','persons1983v1.json',
+  'persons1984v1.json','persons1985v1.json','persons1986v1.json',
+];
+
+// Zip them together by index so we load one year across all three types at once
+const YEAR_FILE_TRIPLES = ARTICLE_YEAR_FILES.map((a, i) => ({
+  articles:  a,
+  locations: LOCATION_YEAR_FILES[i],
+  persons:   PERSON_YEAR_FILES[i],
+}));
 
 // Track which year files have been fetched
 const loadedYears   = new Set();
@@ -177,23 +231,26 @@ async function ensureAllYearsLoaded(progressCb) {
   if (loadInProgress) return;
   loadInProgress = true;
 
-  const unloaded = YEARS.filter(y => !loadedYears.has(y));
+  const unloaded = YEAR_FILE_TRIPLES.filter((_, i) => !loadedYears.has(i));
   let done = 0;
-  // Load in small concurrent batches to avoid flooding
+  // Load in small concurrent batches to avoid flooding the server
   const BATCH = 8;
   for (let i = 0; i < unloaded.length; i += BATCH) {
     const batch = unloaded.slice(i, i + BATCH);
-    await Promise.all(batch.map(async year => {
-      const sets = await Promise.all(['articles','locations','persons'].map(async type => {
-        const records = await fetchFile(`${BASE}${type}${year}v1.json`);
-        return { type, records };
-      }));
+    await Promise.all(batch.map(async (triple, bi) => {
+      const idx = i + bi;
+      const sets = await Promise.all(
+        Object.entries(triple).map(async ([type, filename]) => {
+          const records = await fetchFile(BASE + filename);
+          return { type, records };
+        })
+      );
       sets.forEach(({ type, records }) => {
         DB[type].push(...records);
         addToIndex(records, DB[`${type}sByFile`], DB[`${type}sByKey`]);
         addToUnifiedIndex(records, type);
       });
-      loadedYears.add(year);
+      loadedYears.add(idx);
       done++;
     }));
     if (progressCb) progressCb(done, unloaded.length);
