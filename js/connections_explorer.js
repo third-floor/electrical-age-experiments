@@ -197,7 +197,27 @@ function buildPageRegistry() {
 function nearbyPages(radius = 2) {
   const fn = anchor.filename || '';
   const pg = parseInt(anchor.page_number, 10);
-  const idx = DB.pageRegistry.findIndex(r => r.filename === fn && r.page === pg);
+
+  // Try exact filename + page match first
+  let idx = DB.pageRegistry.findIndex(r => r.filename === fn && r.page === pg);
+
+  // Fallback: if anchor's page number isn't in the registry under this filename
+  // (can happen when location/person page_number is a print page rather than a
+  // file-sequence page), find any registry entry with the same filename and use
+  // the closest page to anchor's page number.
+  if (idx === -1 && fn) {
+    const candidates = DB.pageRegistry
+      .map((r, i) => ({ i, r }))
+      .filter(({ r }) => r.filename === fn);
+    if (candidates.length > 0) {
+      // Pick the entry whose page is closest to anchor's page (or just the first)
+      const best = isNaN(pg)
+        ? candidates[0]
+        : candidates.reduce((a, b) => Math.abs(a.r.page - pg) <= Math.abs(b.r.page - pg) ? a : b);
+      idx = best.i;
+    }
+  }
+
   if (idx === -1) return [];
   const results = [];
   for (let d = -radius; d <= radius; d++) {
@@ -634,14 +654,15 @@ function sharedFlags(r, dataType) {
   const n = nameOfRecord(r, dataType);
   const a = articleTitleOf(r);
 
-  // ★ Shared name: this record's primary name also appears as the primary name
-  // of at least one other connection record.
+  // ★ Shared name: this record's primary name matches the anchor's primary name.
+  // For persons we use fuzzy matching (catches title/format differences like
+  // "Miss Sutton" vs "Sutton, Miss"). For locations and articles we use exact
+  // normalised match only — place names are too similar to fuzzy-match safely.
   let sharedName = false;
   if (n) {
     if (sharedNames.has(n)) {
       sharedName = true;
-    } else {
-      // Fuzzy fallback: catches minor formatting differences
+    } else if (dataType === 'person' || anchorType === 'person') {
       for (const sn of sharedNames) {
         if (fuzzyMatch(n, sn)) { sharedName = true; break; }
       }
@@ -652,11 +673,11 @@ function sharedFlags(r, dataType) {
   // anchor's article title — i.e. it was mentioned in the same article.
   // Only meaningful when the record has an article_title field (locations &
   // persons do; articles themselves use their title as primary name instead).
+  // Uses exact normalised match only — fuzzy is too loose for article titles
+  // (e.g. "Eastern Area" would wrongly match "North-Eastern Area").
   let sharedArticle = false;
   if (a && dataType !== 'article') {
-    for (const sa of sharedArticles) {
-      if (a === sa || fuzzyMatch(a, sa)) { sharedArticle = true; break; }
-    }
+    sharedArticle = sharedArticles.has(a);
   }
 
   return { sharedName, sharedArticle };
