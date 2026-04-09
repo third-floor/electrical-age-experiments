@@ -5,358 +5,118 @@
     <title>Connections Explorer — LLM Research Diary</title>
     <link rel="stylesheet" href="css/style.css">
     <style>
-        /* ── Layout ──────────────────────────────────────────────────────── */
-        .explorer-container {
-            max-width: 1100px;
-            margin: 2rem auto;
-            padding: 0 20px;
-        }
+        .explorer-container { max-width: 1100px; margin: 2rem auto; padding: 0 20px; }
 
         /* ── Page header ─────────────────────────────────────────────────── */
-        .page-header {
-            text-align: center;
-            border-bottom: 3px double #2c2c2c;
-            margin-bottom: 2rem;
-            padding-bottom: 1.5rem;
-        }
-        .page-header h2 {
-            font-family: Georgia, serif;
-            font-size: 2.2rem;
-            letter-spacing: 4px;
-            text-transform: uppercase;
-            margin: 0 0 0.5rem 0;
-        }
-        .page-header .subtitle {
-            font-family: Georgia, serif;
-            font-style: italic;
-            color: #555;
-            font-size: 1rem;
-        }
-        .dataset-meta {
-            margin-top: 1rem;
-            font-size: 0.82rem;
-            color: #888;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
+        .page-header { text-align: center; border-bottom: 3px double #2c2c2c; margin-bottom: 2rem; padding-bottom: 1.5rem; }
+        .page-header h2 { font-family: Georgia, serif; font-size: 2.2rem; letter-spacing: 4px; text-transform: uppercase; margin: 0 0 0.5rem 0; }
+        .page-header .subtitle { font-family: Georgia, serif; font-style: italic; color: #555; font-size: 1rem; }
+        .dataset-meta { margin-top: 1rem; font-size: 0.82rem; color: #888; letter-spacing: 1px; text-transform: uppercase; }
 
         /* ── Loading ─────────────────────────────────────────────────────── */
-        #loading-bar {
-            display: none;
-            text-align: center;
-            padding: 2rem;
-            font-family: Georgia, serif;
-            font-style: italic;
-            color: #888;
-            border: 1px dashed #d3c9b1;
-            background: #fdfaf3;
-            margin-bottom: 1.5rem;
-        }
-        #loading-status {
-            font-family: Georgia, serif;
-            font-size: 0.85rem;
-            color: #aaa;
-            text-align: center;
-            margin-bottom: 1rem;
-            min-height: 1.2em;
-        }
+        #loading-bar { display: none; text-align: center; padding: 2rem; font-family: Georgia, serif; font-style: italic; color: #888; border: 1px dashed #d3c9b1; background: #fdfaf3; margin-bottom: 1.5rem; }
+        #loading-status { font-family: Georgia, serif; font-size: 0.85rem; color: #aaa; text-align: center; margin-bottom: 1rem; min-height: 1.2em; }
 
         /* ── Search area ─────────────────────────────────────────────────── */
-        #search-area {
-            display: none;
-            background: #fdfaf3;
-            border: 1px solid #d3c9b1;
-            padding: 1.25rem;
-            margin-bottom: 1.5rem;
-        }
-        .search-area-hdr {
-            font-family: Georgia, serif;
-            font-variant: small-caps;
-            font-size: 0.82rem;
-            letter-spacing: 0.05em;
-            color: #888;
-            margin-bottom: 0.75rem;
-        }
-        .search-wrap {
-            position: relative;
-        }
-        #article-search {
-            width: 100%;
-            padding: 0.55rem 0.9rem;
-            font-size: 0.95rem;
-            font-family: Georgia, serif;
-            border: 1px solid #ccc;
-            border-radius: 3px;
-            background: #fff;
-            box-sizing: border-box;
-        }
-        #article-search:focus {
-            outline: none;
-            border-color: #2c2c2c;
-        }
-        #article-dd {
-            position: absolute;
-            top: calc(100% + 2px);
-            left: 0;
-            right: 0;
-            max-height: 320px;
-            overflow-y: auto;
-            background: #fff;
-            border: 1px solid #ccc;
-            border-top: none;
-            z-index: 300;
-            display: none;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        }
-        .dd-item {
-            padding: 0.45rem 0.8rem;
-            cursor: pointer;
-            border-bottom: 1px solid #f5f5f5;
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
+        #search-area { display: none; background: #fdfaf3; border: 1px solid #d3c9b1; padding: 1.25rem; margin-bottom: 1rem; }
+        .search-area-hdr { font-family: Georgia, serif; font-variant: small-caps; font-size: 0.82rem; letter-spacing: 0.05em; color: #888; margin-bottom: 0.75rem; }
+        .search-row { display: flex; gap: 0.5rem; align-items: stretch; }
+        #search-type { padding: 0.55rem 0.75rem; font-size: 0.88rem; font-family: Georgia, serif; border: 1px solid #ccc; border-radius: 3px; background: #fff; flex-shrink: 0; cursor: pointer; }
+        #search-type:focus { outline: none; border-color: #2c2c2c; }
+        .search-wrap { position: relative; flex: 1; }
+        #conn-search { width: 100%; padding: 0.55rem 0.9rem; font-size: 0.95rem; font-family: Georgia, serif; border: 1px solid #ccc; border-radius: 3px; background: #fff; box-sizing: border-box; }
+        #conn-search:focus { outline: none; border-color: #2c2c2c; }
+
+        /* ── Dropdown ────────────────────────────────────────────────────── */
+        #conn-dd { position: absolute; top: calc(100% + 2px); left: 0; right: 0; max-height: 320px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-top: none; z-index: 300; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .dd-item { padding: 0.45rem 0.8rem; cursor: pointer; border-bottom: 1px solid #f5f5f5; display: flex; flex-direction: column; gap: 2px; }
         .dd-item:hover, .dd-item.active { background: #f5f0e8; }
-        .dd-title {
-            font-family: Georgia, serif;
-            font-size: 0.88rem;
-            color: #2c2c2c;
-        }
-        .dd-meta {
-            font-family: Georgia, serif;
-            font-size: 0.76rem;
-            color: #aaa;
-            font-style: italic;
-        }
-        .dd-group-label {
-            padding: 0.22rem 0.8rem;
-            font-size: 0.71rem;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            color: #bbb;
-            background: #fafafa;
-            font-family: Georgia, serif;
-            border-bottom: 1px solid #f0f0f0;
-            pointer-events: none;
-        }
+        .dd-title { font-family: Georgia, serif; font-size: 0.88rem; color: #2c2c2c; }
+        .dd-meta  { font-family: Georgia, serif; font-size: 0.75rem; color: #aaa; font-style: italic; }
+        .dd-group-label { padding: 0.22rem 0.8rem; font-size: 0.71rem; text-transform: uppercase; letter-spacing: 0.06em; color: #bbb; background: #fafafa; font-family: Georgia, serif; border-bottom: 1px solid #f0f0f0; pointer-events: none; }
+
+        /* ── View toggle ─────────────────────────────────────────────────── */
+        #view-toggle { display: none; gap: 0; margin-bottom: 1.25rem; align-items: center; }
+        .view-toggle-label { font-family: Georgia, serif; font-size: 0.82rem; color: #888; margin-right: 0.6rem; font-variant: small-caps; letter-spacing: 0.05em; }
+        .view-btn { padding: 0.4rem 0.9rem; border: 1px solid #ccc; background: #fff; cursor: pointer; font-family: Georgia, serif; font-size: 0.85rem; color: #555; }
+        .view-btn:first-of-type { border-radius: 3px 0 0 3px; }
+        .view-btn:last-of-type  { border-radius: 0 3px 3px 0; border-left: none; }
+        .view-btn:hover  { background: #f5f0e8; }
+        .view-btn.active { background: #2c2c2c; color: #fff; border-color: #2c2c2c; }
+
+        /* ── Shared legend ───────────────────────────────────────────────── */
+        #shared-legend { display: none; align-items: center; gap: 0.6rem; margin-bottom: 1.5rem; padding: 0.6rem 1rem; background: #fffbe6; border: 1px solid #ffe082; border-left: 4px solid #f9a825; font-family: Georgia, serif; font-size: 0.85rem; color: #5d4000; }
+        .shared-swatch { width: 14px; height: 14px; background: #fff8c5; border: 2px solid #f9a825; border-radius: 2px; flex-shrink: 0; }
 
         /* ── Placeholder ─────────────────────────────────────────────────── */
-        #placeholder {
-            text-align: center;
-            padding: 4rem 1rem;
-            font-family: Georgia, serif;
-            color: #999;
-            font-style: italic;
-            border: 1px dashed #d3c9b1;
-            background: #fdfaf3;
-        }
+        #placeholder { text-align: center; padding: 4rem 1rem; font-family: Georgia, serif; color: #999; font-style: italic; border: 1px dashed #d3c9b1; background: #fdfaf3; }
+
+        /* ── Sections ────────────────────────────────────────────────────── */
+        .section-block  { margin-bottom: 2.5rem; }
+        .section-header { border-bottom: 1px solid #2c2c2c; margin-bottom: 1.25rem; padding-bottom: 0.4rem; display: flex; align-items: baseline; gap: 0.75rem; flex-wrap: wrap; }
+        .section-header h3 { font-family: Georgia, serif; font-variant: small-caps; font-size: 1.2rem; letter-spacing: 2px; margin: 0; }
+        .section-number { font-family: Georgia, serif; font-style: italic; color: #999; font-size: 0.9rem; }
+        .section-count  { margin-left: auto; font-family: Georgia, serif; font-size: 0.8rem; color: #aaa; font-style: italic; }
+        .section-note   { font-family: Georgia, serif; font-style: italic; font-size: 0.88rem; color: #666; margin-bottom: 1rem; }
+
+        .sub-section { margin-bottom: 1.75rem; }
+        .sub-section-hdr { font-family: Georgia, serif; font-variant: small-caps; font-size: 0.88rem; letter-spacing: 1px; color: #555; margin-bottom: 0.75rem; padding-bottom: 0.3rem; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 0.5rem; }
+        .sub-type-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+        .dot-article  { background: #1565c0; }
+        .dot-location { background: #136348; }
+        .dot-person   { background: #4527a0; }
+        .empty-note { display: none; font-family: Georgia, serif; font-style: italic; color: #bbb; font-size: 0.86rem; padding: 0.5rem 0; }
 
         /* ── Anchor card ─────────────────────────────────────────────────── */
-        #anchor-card {
-            margin-bottom: 2rem;
-        }
-        .conn-card.anchor {
-            border: 2px solid #2c2c2c;
-        }
-        .conn-card.anchor .conn-hdr-article {
-            background: #2c2c2c;
-        }
-
-        /* ── Section blocks ──────────────────────────────────────────────── */
-        .section-block {
-            margin-bottom: 2.5rem;
-        }
-        .section-header {
-            border-bottom: 1px solid #2c2c2c;
-            margin-bottom: 1.25rem;
-            padding-bottom: 0.4rem;
-            display: flex;
-            align-items: baseline;
-            gap: 0.75rem;
-        }
-        .section-header h3 {
-            font-family: Georgia, serif;
-            font-variant: small-caps;
-            font-size: 1.2rem;
-            letter-spacing: 2px;
-            margin: 0;
-        }
-        .section-number {
-            font-family: Georgia, serif;
-            font-style: italic;
-            color: #999;
-            font-size: 0.9rem;
-        }
-        .section-count {
-            margin-left: auto;
-            font-family: Georgia, serif;
-            font-size: 0.8rem;
-            color: #aaa;
-            font-style: italic;
-        }
-        .section-note {
-            font-family: Georgia, serif;
-            font-style: italic;
-            font-size: 0.88rem;
-            color: #666;
-            margin-bottom: 1rem;
-        }
-
-        /* ── Sub-sections (articles / locations / persons) ───────────────── */
-        .sub-section {
-            margin-bottom: 1.75rem;
-        }
-        .sub-section-hdr {
-            font-family: Georgia, serif;
-            font-variant: small-caps;
-            font-size: 0.9rem;
-            letter-spacing: 1px;
-            color: #555;
-            margin-bottom: 0.75rem;
-            padding-bottom: 0.3rem;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .sub-type-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            display: inline-block;
-            flex-shrink: 0;
-        }
-        .dot-article  { background: #1976d2; }
-        .dot-location { background: #1D9E75; }
-        .dot-person   { background: #7F77DD; }
-
-        .empty-note {
-            display: none;
-            font-family: Georgia, serif;
-            font-style: italic;
-            color: #bbb;
-            font-size: 0.86rem;
-            padding: 0.5rem 0;
-        }
+        .anchor-card-full { border: 2px solid #2c2c2c !important; }
 
         /* ── Cards grid ──────────────────────────────────────────────────── */
-        .cards-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 0.75rem;
-        }
+        .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.75rem; }
 
-        .conn-card {
-            border: 1px solid #d3c9b1;
-            overflow: hidden;
-            font-family: Georgia, serif;
-        }
-        .conn-card-hdr {
-            padding: 0.45rem 0.75rem;
-            display: flex;
-            align-items: flex-start;
-            gap: 0.5rem;
-        }
+        /* ── Shared highlight ────────────────────────────────────────────── */
+        .conn-shared { border-color: #f9a825 !important; border-width: 2px !important; }
+        .shared-banner { font-family: Georgia, serif; font-size: 0.75rem; font-style: italic; color: #7a5c00; background: #fff8c5; border: 1px solid #ffe082; padding: 0.2rem 0.5rem; margin-bottom: 0.5rem; display: inline-block; }
+
+        /* ── Cards ───────────────────────────────────────────────────────── */
+        .conn-card { border: 1px solid #d3c9b1; overflow: hidden; font-family: Georgia, serif; }
+        .conn-card-hdr { padding: 0.45rem 0.75rem; display: flex; align-items: flex-start; gap: 0.5rem; }
         .conn-hdr-article  { background: #1565c0; color: #fff; }
         .conn-hdr-location { background: #136348; color: #fff; }
         .conn-hdr-person   { background: #4527a0; color: #fff; }
-
-        .conn-type-badge {
-            font-size: 0.68rem;
-            font-variant: small-caps;
-            letter-spacing: 0.05em;
-            opacity: 0.75;
-            flex-shrink: 0;
-            padding-top: 1px;
-        }
-        .conn-card-title {
-            font-size: 0.85rem;
-            font-weight: bold;
-            line-height: 1.3;
-        }
-        .conn-card-body {
-            padding: 0.6rem 0.75rem;
-            background: #fdfaf3;
-        }
-        .conn-field {
-            display: flex;
-            gap: 0.5rem;
-            font-size: 0.82rem;
-            padding: 0.18rem 0;
-            border-bottom: 1px solid #f0ebe0;
-            line-height: 1.35;
-        }
+        .conn-type-badge { font-size: 0.68rem; font-variant: small-caps; letter-spacing: 0.05em; opacity: 0.75; flex-shrink: 0; padding-top: 1px; }
+        .conn-card-title { font-size: 0.85rem; font-weight: bold; line-height: 1.3; }
+        .conn-card-body { padding: 0.6rem 0.75rem; background: #fdfaf3; }
+        .conn-field { display: flex; gap: 0.5rem; font-size: 0.82rem; padding: 0.18rem 0; border-bottom: 1px solid #f0ebe0; line-height: 1.35; }
         .conn-field:last-child { border-bottom: none; }
-        .conn-label {
-            color: #999;
-            font-size: 0.76rem;
-            flex-shrink: 0;
-            width: 80px;
-            padding-top: 1px;
-        }
-        .conn-value {
-            color: #2c2c2c;
-            word-break: break-word;
-        }
-        .conn-extract {
-            margin-top: 0.5rem;
-            font-size: 0.82rem;
-        }
-        .conn-extract summary {
-            cursor: pointer;
-            color: #1565c0;
-            font-style: italic;
-        }
+        .conn-label { color: #999; font-size: 0.76rem; flex-shrink: 0; width: 80px; padding-top: 1px; }
+        .conn-value { color: #2c2c2c; word-break: break-word; }
+        .conn-extract { margin-top: 0.5rem; font-size: 0.82rem; }
+        .conn-extract summary { cursor: pointer; color: #1565c0; font-style: italic; }
         .conn-extract summary:hover { text-decoration: underline; }
-        .conn-extract p {
-            margin: 0.4rem 0 0;
-            padding: 0.4rem 0.6rem;
-            background: #f5f0e8;
-            border-left: 3px solid #d3c9b1;
-            font-size: 0.82rem;
-            line-height: 1.45;
-            color: #333;
-        }
+        .conn-extract p { margin: 0.4rem 0 0; padding: 0.4rem 0.6rem; background: #f5f0e8; border-left: 3px solid #d3c9b1; font-size: 0.82rem; line-height: 1.45; color: #333; }
 
         /* ── Proximity tag ───────────────────────────────────────────────── */
-        .proximity-tag {
-            display: inline-block;
-            font-size: 0.72rem;
-            font-family: Georgia, serif;
-            background: #fff3e0;
-            color: #e65100;
-            border: 1px solid #ffcc80;
-            border-radius: 2px;
-            padding: 0.15rem 0.5rem;
-            margin-bottom: 0.5rem;
-        }
+        .proximity-tag { display: inline-block; font-size: 0.72rem; font-family: Georgia, serif; background: #fff3e0; color: #e65100; border: 1px solid #ffcc80; border-radius: 2px; padding: 0.15rem 0.5rem; margin-bottom: 0.5rem; }
 
-        /* ── Ornament ────────────────────────────────────────────────────── */
-        .ornament {
-            text-align: center;
-            color: #bbb;
-            font-size: 1.2rem;
-            margin: 2rem 0 1.75rem;
-            letter-spacing: 8px;
-        }
+        /* ── Table view ──────────────────────────────────────────────────── */
+        .table-view-wrap { overflow-x: auto; display: none; }
+        .conn-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; font-family: Georgia, serif; }
+        .conn-table th { background: #2c2c2c; color: #fff; padding: 0.4rem 0.65rem; text-align: left; font-weight: normal; font-variant: small-caps; letter-spacing: 0.05em; white-space: nowrap; }
+        .conn-table td { padding: 0.32rem 0.65rem; border-bottom: 1px solid #e0d8c8; vertical-align: top; }
+        .conn-table tr:nth-child(even) td { background: #fdfaf3; }
+        .conn-table tr:hover td { background: #f5f0e8; }
+        .conn-table tr.shared-row td { background: #fff8c5; }
+        .conn-table tr.shared-row:hover td { background: #fff3a0; }
 
-        /* ── Nearby section callout ──────────────────────────────────────── */
-        .nearby-note {
-            background: #fff8ee;
-            border: 1px solid #ffe0b2;
-            border-left: 4px solid #ff9800;
-            padding: 0.6rem 1rem;
-            font-family: Georgia, serif;
-            font-size: 0.87rem;
-            font-style: italic;
-            color: #5d4037;
-            margin-bottom: 1rem;
-        }
+        /* ── Nearby callout ──────────────────────────────────────────────── */
+        .nearby-note { background: #fff8ee; border: 1px solid #ffe0b2; border-left: 4px solid #ff9800; padding: 0.6rem 1rem; font-family: Georgia, serif; font-size: 0.87rem; font-style: italic; color: #5d4037; margin-bottom: 1rem; }
 
+        .ornament { text-align: center; color: #bbb; font-size: 1.2rem; margin: 2rem 0 1.75rem; letter-spacing: 8px; }
         #content { display: none; }
 
         @media (max-width: 600px) {
             .cards-grid { grid-template-columns: 1fr; }
+            .search-row { flex-direction: column; }
         }
     </style>
 </head>
@@ -382,35 +142,50 @@
 
     <div class="page-header">
         <h2>Connections Explorer</h2>
-        <div class="subtitle">Discover people, places and articles connected to any article across the full dataset</div>
+        <div class="subtitle">Discover people, places and articles connected to any article, location or person</div>
         <div class="dataset-meta" id="dataset-meta">Loading dataset…</div>
     </div>
 
     <div id="loading-bar">Loading data — this may take a moment…</div>
     <div id="loading-status"></div>
 
-    <!-- Search -->
     <div id="search-area">
-        <div class="search-area-hdr">Search for an article to explore its connections</div>
-        <div class="search-wrap">
-            <input type="text" id="article-search" placeholder="Type an article title…" autocomplete="off">
-            <div id="article-dd"></div>
+        <div class="search-area-hdr">Search by article title, location name, or person name</div>
+        <div class="search-row">
+            <select id="search-type">
+                <option value="article">Article</option>
+                <option value="location">Location</option>
+                <option value="person">Person</option>
+            </select>
+            <div class="search-wrap">
+                <input type="text" id="conn-search" placeholder="Type an article title…" autocomplete="off">
+                <div id="conn-dd"></div>
+            </div>
         </div>
     </div>
 
-    <!-- Placeholder -->
-    <div id="placeholder">
-        Search for an article above to explore its connections across people, locations and other articles.
+    <div id="view-toggle">
+        <span class="view-toggle-label">Display as:</span>
+        <button class="view-btn active" data-view="card">Cards</button>
+        <button class="view-btn" data-view="table">Table</button>
     </div>
 
-    <!-- Main content -->
+    <div id="shared-legend">
+        <div class="shared-swatch"></div>
+        <span><strong>★ Shared name</strong> — these records share an article title, location name, or person name with at least one other connection. They are sorted to the top of each section.</span>
+    </div>
+
+    <div id="placeholder">
+        Search for an article, location or person above to explore its connections across the full dataset.
+    </div>
+
     <div id="content">
 
-        <!-- Anchor article -->
+        <!-- Anchor -->
         <div class="section-block">
             <div class="section-header">
                 <span class="section-number">⚓</span>
-                <h3>Selected Article</h3>
+                <h3>Selected Record</h3>
             </div>
             <div id="anchor-card"></div>
         </div>
@@ -422,37 +197,48 @@
             <div class="section-header">
                 <span class="section-number">I</span>
                 <h3>Direct Connections</h3>
-                <span class="section-count">(<span id="direct-articles-count">0</span> articles · <span id="direct-locations-count">0</span> locations · <span id="direct-persons-count">0</span> persons)</span>
+                <span class="section-count">
+                    <span id="direct-articles-count">0</span> articles ·
+                    <span id="direct-locations-count">0</span> locations ·
+                    <span id="direct-persons-count">0</span> persons
+                </span>
             </div>
-            <p class="section-note">
-                Records sharing the same source file or the same page number and date as the selected article.
-            </p>
+            <p class="section-note">Records sharing the same source file, or the same page number and date, as the selected record.</p>
 
             <div class="sub-section">
-                <div class="sub-section-hdr">
-                    <span class="sub-type-dot dot-article"></span>
-                    Articles on the same page / file
-                </div>
+                <div class="sub-section-hdr"><span class="sub-type-dot dot-article"></span>Articles</div>
                 <div class="empty-note" id="direct-articles-empty">No other articles found on this page or file.</div>
-                <div class="cards-grid" id="direct-articles-body"></div>
+                <div class="cards-grid" id="direct-articles-wrap"></div>
+                <div class="table-view-wrap" id="direct-articles-table">
+                    <table class="conn-table">
+                        <thead><tr><th>Name</th><th>Type</th><th>Detail</th><th>Page</th><th>Date</th><th>Vol/Issue</th><th>File</th><th>Proximity</th></tr></thead>
+                        <tbody id="direct-articles-body"></tbody>
+                    </table>
+                </div>
             </div>
 
             <div class="sub-section">
-                <div class="sub-section-hdr">
-                    <span class="sub-type-dot dot-location"></span>
-                    Locations mentioned on this page / file
-                </div>
+                <div class="sub-section-hdr"><span class="sub-type-dot dot-location"></span>Locations</div>
                 <div class="empty-note" id="direct-locations-empty">No locations found on this page or file.</div>
-                <div class="cards-grid" id="direct-locations-body"></div>
+                <div class="cards-grid" id="direct-locations-wrap"></div>
+                <div class="table-view-wrap" id="direct-locations-table">
+                    <table class="conn-table">
+                        <thead><tr><th>Name</th><th>Type</th><th>Detail</th><th>Page</th><th>Date</th><th>Vol/Issue</th><th>File</th><th>Proximity</th></tr></thead>
+                        <tbody id="direct-locations-body"></tbody>
+                    </table>
+                </div>
             </div>
 
             <div class="sub-section">
-                <div class="sub-section-hdr">
-                    <span class="sub-type-dot dot-person"></span>
-                    People mentioned on this page / file
-                </div>
+                <div class="sub-section-hdr"><span class="sub-type-dot dot-person"></span>People</div>
                 <div class="empty-note" id="direct-persons-empty">No people found on this page or file.</div>
-                <div class="cards-grid" id="direct-persons-body"></div>
+                <div class="cards-grid" id="direct-persons-wrap"></div>
+                <div class="table-view-wrap" id="direct-persons-table">
+                    <table class="conn-table">
+                        <thead><tr><th>Name</th><th>Type</th><th>Detail</th><th>Page</th><th>Date</th><th>Vol/Issue</th><th>File</th><th>Proximity</th></tr></thead>
+                        <tbody id="direct-persons-body"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -463,47 +249,58 @@
             <div class="section-header">
                 <span class="section-number">II</span>
                 <h3>Nearby Connections</h3>
-                <span class="section-count">(<span id="nearby-articles-count">0</span> articles · <span id="nearby-locations-count">0</span> locations · <span id="nearby-persons-count">0</span> persons)</span>
+                <span class="section-count">
+                    <span id="nearby-articles-count">0</span> articles ·
+                    <span id="nearby-locations-count">0</span> locations ·
+                    <span id="nearby-persons-count">0</span> persons
+                </span>
             </div>
             <div class="nearby-note">
-                These records appear on pages within ±2 pages of the selected article and may be contextually related, but are not on the same page or file. Each card is labelled with its proximity.
+                These records appear within ±2 pages of the selected record in the dataset. They are not on the same page or file, but may be contextually related. Each entry is labelled with its proximity.
             </div>
 
             <div class="sub-section">
-                <div class="sub-section-hdr">
-                    <span class="sub-type-dot dot-article"></span>
-                    Nearby articles
-                </div>
+                <div class="sub-section-hdr"><span class="sub-type-dot dot-article"></span>Nearby articles</div>
                 <div class="empty-note" id="nearby-articles-empty">No nearby articles found within ±2 pages.</div>
-                <div class="cards-grid" id="nearby-articles-body"></div>
+                <div class="cards-grid" id="nearby-articles-wrap"></div>
+                <div class="table-view-wrap" id="nearby-articles-table">
+                    <table class="conn-table">
+                        <thead><tr><th>Name</th><th>Type</th><th>Detail</th><th>Page</th><th>Date</th><th>Vol/Issue</th><th>File</th><th>Proximity</th></tr></thead>
+                        <tbody id="nearby-articles-body"></tbody>
+                    </table>
+                </div>
             </div>
 
             <div class="sub-section">
-                <div class="sub-section-hdr">
-                    <span class="sub-type-dot dot-location"></span>
-                    Nearby locations
-                </div>
+                <div class="sub-section-hdr"><span class="sub-type-dot dot-location"></span>Nearby locations</div>
                 <div class="empty-note" id="nearby-locations-empty">No nearby locations found within ±2 pages.</div>
-                <div class="cards-grid" id="nearby-locations-body"></div>
+                <div class="cards-grid" id="nearby-locations-wrap"></div>
+                <div class="table-view-wrap" id="nearby-locations-table">
+                    <table class="conn-table">
+                        <thead><tr><th>Name</th><th>Type</th><th>Detail</th><th>Page</th><th>Date</th><th>Vol/Issue</th><th>File</th><th>Proximity</th></tr></thead>
+                        <tbody id="nearby-locations-body"></tbody>
+                    </table>
+                </div>
             </div>
 
             <div class="sub-section">
-                <div class="sub-section-hdr">
-                    <span class="sub-type-dot dot-person"></span>
-                    Nearby people
-                </div>
+                <div class="sub-section-hdr"><span class="sub-type-dot dot-person"></span>Nearby people</div>
                 <div class="empty-note" id="nearby-persons-empty">No nearby people found within ±2 pages.</div>
-                <div class="cards-grid" id="nearby-persons-body"></div>
+                <div class="cards-grid" id="nearby-persons-wrap"></div>
+                <div class="table-view-wrap" id="nearby-persons-table">
+                    <table class="conn-table">
+                        <thead><tr><th>Name</th><th>Type</th><th>Detail</th><th>Page</th><th>Date</th><th>Vol/Issue</th><th>File</th><th>Proximity</th></tr></thead>
+                        <tbody id="nearby-persons-body"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
     </div><!-- #content -->
-
 </div>
 </main>
 
 <footer>© LLM Research Diary</footer>
-
 <script src="js/connections_explorer.js"></script>
 </body>
 </html>
