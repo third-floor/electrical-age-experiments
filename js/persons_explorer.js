@@ -277,12 +277,19 @@ function attachDropdown(inputId, ddId) {
 function pickPerson(name) {
   if (selected.includes(name) || selected.length >= MAX_PERSONS) return;
   selected.push(name);
+  // Reset expand state for new slot index
+  const newIdx = selected.length - 1;
+  ['roles','orgs','articles','comenon'].forEach(s => delete expandState[`${s}:${newIdx}`]);
   renderSlots();
   triggerRender();
 }
 
 function removePerson(i) {
+  const removedName = selected[i];
   selected.splice(i, 1);
+  // Clear co-mention cache for removed person; also clear expand state for all
+  delete _coMentionCache[removedName];
+  Object.keys(expandState).forEach(k => delete expandState[k]);
   renderSlots();
   if (selected.length === 0) {
     document.getElementById('placeholder').style.display = 'block';
@@ -504,6 +511,56 @@ function renderRelationBreakdown() {
 }
 
 // ── IV. Role cloud / top roles ────────────────────────────────────────────────
+// expandState tracks how many rows to show per section per person.
+// Key format: "section:personIndex"  value: number of rows to show (or Infinity)
+const expandState = {};
+
+const EXPAND_STEP = 10;
+const EXPAND_INITIAL = 10;
+
+function getExpand(section, idx) {
+  const key = `${section}:${idx}`;
+  return expandState[key] !== undefined ? expandState[key] : EXPAND_INITIAL;
+}
+function setExpand(section, idx, val) {
+  expandState[`${section}:${idx}`] = val;
+}
+
+function expandableTable(section, idx, allEntries, renderRow, total) {
+  // allEntries: sorted array of all entries
+  // renderRow: fn(entry, idx_in_full_list) -> <tr> html string
+  // total: allEntries.length
+  const limit   = getExpand(section, idx);
+  const showing = Math.min(limit, total);
+  const hidden  = total - showing;
+
+  const rowsHtml = allEntries.slice(0, showing).map((e, ri) => renderRow(e, ri)).join('');
+
+  let btnHtml = '';
+  if (hidden > 0) {
+    const next = Math.min(showing + EXPAND_STEP, total);
+    const nextMore = next - showing;
+    btnHtml = `<div class="expand-row">
+      <button class="expand-tbl-btn" onclick="expandTable('${section}',${idx},${next})">Show ${nextMore} more (${hidden} remaining)</button>
+      <button class="expand-tbl-btn expand-tbl-all" onclick="expandTable('${section}',${idx},Infinity)">Show all ${total}</button>
+    </div>`;
+  } else if (total > EXPAND_INITIAL) {
+    btnHtml = `<div class="expand-row">
+      <button class="expand-tbl-btn expand-tbl-collapse" onclick="expandTable('${section}',${idx},${EXPAND_INITIAL})">Collapse</button>
+    </div>`;
+  }
+
+  return rowsHtml + btnHtml;
+}
+
+function expandTable(section, personIdx, val) {
+  setExpand(section, personIdx, val === Infinity ? Infinity : +val);
+  // Re-render only the affected section
+  if (section === 'roles') renderRoleCloud();
+  else if (section === 'orgs') renderOrganisations();
+  else if (section === 'articles') renderArticleContext();
+  else if (section === 'comenon') renderCoMentioned();
+}
 
 function renderRoleCloud() {
   const container = document.getElementById('role-cards');
@@ -511,19 +568,38 @@ function renderRoleCloud() {
     const recs  = recordsByName[name] || [];
     const roleCounts = {};
     recs.forEach(r => { if (r.role) roleCounts[r.role] = (roleCounts[r.role]||0) + 1; });
-    const topRoles = Object.entries(roleCounts).sort((a,b)=>b[1]-a[1]).slice(0, 8);
+    const allRoles = Object.entries(roleCounts).sort((a,b) => b[1] - a[1]);
+    const total    = allRoles.length;
 
-    const rows = topRoles.map(([role, count]) =>
-      `<div class="role-row">
-        <div class="role-bar-wrap"><div class="role-bar" style="width:${Math.round(count/recs.length*100)}%;background:${color(i)}"></div></div>
-        <span class="role-label">${role}</span>
-        <span class="role-count">${count}</span>
-      </div>`
-    ).join('') || '<div class="no-data">No role data.</div>';
+    if (!total) {
+      return `<div class="expand-card">
+        <div class="expand-card-hdr" style="background:${color(i)}">${short(name,38)}</div>
+        <div class="expand-card-body"><div class="no-data">No role data.</div></div>
+      </div>`;
+    }
 
-    return `<div class="role-card">
-      <div class="role-card-hdr" style="background:${color(i)}">${short(name, 38)}</div>
-      <div class="role-card-body">${rows}</div>
+    const tableBody = expandableTable('roles', i, allRoles, ([role, count]) => {
+      const pct = Math.round(count / recs.length * 100);
+      return `<tr>
+        <td style="width:60px;padding-right:0.5rem">
+          <div class="role-bar-wrap"><div class="role-bar" style="width:${pct}%;background:${color(i)}"></div></div>
+        </td>
+        <td>${role}</td>
+        <td class="tbl-count">${count}</td>
+        <td class="tbl-count">${pct}%</td>
+      </tr>`;
+    }, total);
+
+    return `<div class="expand-card">
+      <div class="expand-card-hdr" style="background:${color(i)}">${short(name,38)}
+        <span class="card-total">${total} role${total!==1?'s':''}</span>
+      </div>
+      <div class="expand-card-body">
+        <table class="expand-tbl">
+          <thead><tr><th style="width:60px"></th><th>Role</th><th class="tbl-count">Count</th><th class="tbl-count">Share</th></tr></thead>
+          <tbody>${tableBody}</tbody>
+        </table>
+      </div>
     </div>`;
   }).join('');
 }
@@ -538,15 +614,29 @@ function renderOrganisations() {
     recs.forEach(r => {
       if (r.associated_organisation) orgCounts[r.associated_organisation] = (orgCounts[r.associated_organisation]||0) + 1;
     });
-    const topOrgs = Object.entries(orgCounts).sort((a,b)=>b[1]-a[1]).slice(0, 6);
+    const allOrgs = Object.entries(orgCounts).sort((a,b) => b[1] - a[1]);
+    const total   = allOrgs.length;
 
-    const rows = topOrgs.map(([org, count]) =>
-      `<div class="ov-row"><span class="ov-key" style="width:auto;flex:1">${org}</span><span style="flex-shrink:0;margin-left:0.5rem;color:#888;font-size:0.78rem">${count}×</span></div>`
-    ).join('') || '<div class="no-data">No organisation data.</div>';
+    if (!total) {
+      return `<div class="expand-card">
+        <div class="expand-card-hdr" style="background:${color(i)}">${short(name,36)}</div>
+        <div class="expand-card-body"><div class="no-data">No organisation data.</div></div>
+      </div>`;
+    }
 
-    return `<div class="overview-card">
-      <div class="overview-card-hdr" style="background:${color(i)}">${short(name, 36)}</div>
-      <div class="overview-card-body">${rows}</div>
+    const tableBody = expandableTable('orgs', i, allOrgs, ([org, count]) =>
+      `<tr><td>${org}</td><td class="tbl-count">${count}×</td></tr>`, total);
+
+    return `<div class="expand-card">
+      <div class="expand-card-hdr" style="background:${color(i)}">${short(name,36)}
+        <span class="card-total">${total} org${total!==1?'s':''}</span>
+      </div>
+      <div class="expand-card-body">
+        <table class="expand-tbl">
+          <thead><tr><th>Organisation</th><th class="tbl-count">Count</th></tr></thead>
+          <tbody>${tableBody}</tbody>
+        </table>
+      </div>
     </div>`;
   }).join('');
 }
@@ -616,18 +706,29 @@ function renderArticleContext() {
     const recs = recordsByName[name] || [];
     const artCounts = {};
     recs.forEach(r => { if (r.article_title) artCounts[r.article_title] = (artCounts[r.article_title]||0) + 1; });
-    const top = Object.entries(artCounts).sort((a,b)=>b[1]-a[1]).slice(0,6);
+    const allArts = Object.entries(artCounts).sort((a,b) => b[1] - a[1]);
+    const total   = allArts.length;
 
-    const rows = top.map(([art, count]) =>
-      `<div class="ov-row">
-        <span class="ov-key" style="width:auto;flex:1;font-size:0.78rem">${short(art,55)}</span>
-        <span style="flex-shrink:0;margin-left:0.5rem;color:#888;font-size:0.78rem">${count}×</span>
-      </div>`
-    ).join('') || '<div class="no-data">No article data.</div>';
+    if (!total) {
+      return `<div class="expand-card">
+        <div class="expand-card-hdr" style="background:${color(i)}">${short(name,36)}</div>
+        <div class="expand-card-body"><div class="no-data">No article data.</div></div>
+      </div>`;
+    }
 
-    return `<div class="overview-card">
-      <div class="overview-card-hdr" style="background:${color(i)}">${short(name,36)}</div>
-      <div class="overview-card-body">${rows}</div>
+    const tableBody = expandableTable('articles', i, allArts, ([art, count]) =>
+      `<tr><td title="${art}">${short(art, 60)}</td><td class="tbl-count">${count}×</td></tr>`, total);
+
+    return `<div class="expand-card">
+      <div class="expand-card-hdr" style="background:${color(i)}">${short(name,36)}
+        <span class="card-total">${total} article${total!==1?'s':''}</span>
+      </div>
+      <div class="expand-card-body">
+        <table class="expand-tbl">
+          <thead><tr><th>Article title</th><th class="tbl-count">Count</th></tr></thead>
+          <tbody>${tableBody}</tbody>
+        </table>
+      </div>
     </div>`;
   }).join('');
 
@@ -662,65 +763,57 @@ function renderArticleContext() {
 
 // ── VIII. Co-mentioned persons ────────────────────────────────────────────────
 
+// Cache co-mention results so re-renders for expand don't recompute
+const _coMentionCache = {};
+
 function renderCoMentioned() {
   const container = document.getElementById('co-mention-cards');
   container.innerHTML = '';
 
-  // For each selected person, find which other persons appear in the same files
   selected.forEach((name, i) => {
-    const recs = recordsByName[name] || [];
-    const files = new Set(recs.map(r => r.filename).filter(Boolean));
+    // Use cache if available
+    if (!_coMentionCache[name]) {
+      const recs  = recordsByName[name] || [];
+      const files = new Set(recs.map(r => r.filename).filter(Boolean));
+      const coCounts = {};
+      allRecords.forEach(r => {
+        if (!r.filename || !files.has(r.filename)) return;
+        const coName = (r.standardised_name || r.person_entry || '').trim();
+        if (!coName || coName === name) return;
+        coCounts[coName] = (coCounts[coName]||0) + 1;
+      });
+      _coMentionCache[name] = Object.entries(coCounts).sort((a,b) => b[1] - a[1]);
+    }
 
-    const coCounts = {};
-    allRecords.forEach(r => {
-      if (!r.filename || !files.has(r.filename)) return;
-      const coName = (r.standardised_name || r.person_entry || '').trim();
-      if (!coName || coName === name) return;
-      coCounts[coName] = (coCounts[coName]||0) + 1;
-    });
-
-    const top = Object.entries(coCounts).sort((a,b)=>b[1]-a[1]).slice(0,10);
+    const allCo = _coMentionCache[name];
+    const total  = allCo.length;
 
     const wrapper = document.createElement('div');
-    wrapper.className = 'figure-block';
+    wrapper.className = 'expand-card';
     wrapper.style.marginBottom = '1rem';
 
-    if (!top.length) {
-      wrapper.innerHTML = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:0.5rem">
-        <div style="width:12px;height:12px;background:${color(i)};border-radius:2px;flex-shrink:0"></div>
-        <strong style="font-family:Georgia;font-size:0.88rem">${short(name,60)}</strong>
-      </div><div class="no-data">No co-mentioned persons found.</div>`;
+    if (!total) {
+      wrapper.innerHTML = `
+        <div class="expand-card-hdr" style="background:${color(i)}">${short(name,60)}</div>
+        <div class="expand-card-body"><div class="no-data">No co-mentioned persons found.</div></div>`;
       container.appendChild(wrapper);
       return;
     }
 
-    const canvasId = `ch-co-${i}`;
-    const h = Math.max(160, top.length * 28 + 50);
-    wrapper.innerHTML = `
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:0.5rem">
-        <div style="width:12px;height:12px;background:${color(i)};border-radius:2px;flex-shrink:0"></div>
-        <strong style="font-family:Georgia;font-size:0.88rem">${short(name,60)}</strong>
-      </div>
-      <div class="chart-wrap" style="height:${h}px"><canvas id="${canvasId}"></canvas></div>
-      <div class="figure-caption">Persons appearing in the same files. Count = shared files.</div>`;
-    container.appendChild(wrapper);
+    const tableBody = expandableTable('comenon', i, allCo, ([coName, count]) =>
+      `<tr><td>${coName}</td><td class="tbl-count">${count}</td></tr>`, total);
 
-    mkChart(canvasId, {
-      type: 'bar',
-      data: {
-        labels: top.map(([n]) => short(n, 36)),
-        datasets: [{ data: top.map(([,c]) => c), backgroundColor: color(i) + '99', borderColor: color(i), borderWidth: 1, borderRadius: 1 }],
-      },
-      options: {
-        ...baseOpts(),
-        indexAxis: 'y',
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { ticks: { color: '#73726c', font: { size: 9 } }, grid: { color: 'rgba(0,0,0,0.05)' }, border: { display: false } },
-          y: { ticks: { color: '#73726c', font: { size: 8.5 } }, grid: { display: false }, border: { display: false } },
-        },
-      },
-    });
+    wrapper.innerHTML = `
+      <div class="expand-card-hdr" style="background:${color(i)}">${short(name,60)}
+        <span class="card-total">${total} co-mentioned person${total!==1?'s':''}</span>
+      </div>
+      <div class="expand-card-body">
+        <table class="expand-tbl">
+          <thead><tr><th>Person</th><th class="tbl-count">Shared files</th></tr></thead>
+          <tbody>${tableBody}</tbody>
+        </table>
+      </div>`;
+    container.appendChild(wrapper);
   });
 }
 
