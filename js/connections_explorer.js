@@ -589,6 +589,19 @@ function scoreRecord(r, dataType, proximityTag) {
 }
 
 // ── Shared-name & shared-article computation ──────────────────────────────────
+//
+// ★ Shared name  — the record's PRIMARY name (location name, person name, or
+//   article title) appears more than once as a primary name across all
+//   connection records. Means two or more connections share the same identity.
+//
+// ◆ Shared article — the record's article_title field matches (fuzzy) the
+//   ANCHOR's own article title (or the anchor's primary name if the anchor is
+//   an article). Means this connection was explicitly mentioned in the same
+//   article as the thing we're exploring.
+//
+// Both use normalised + fuzzy matching so minor formatting differences don't
+// prevent a match, but we never tally article_title fields as "names" — that
+// was the bug causing false positives.
 
 function nameOfRecord(r, dataType) {
   return normalise(recordLabel(r, dataType));
@@ -599,52 +612,52 @@ function articleTitleOf(r) {
 }
 
 function computeSharedSets(allItems) {
-  // shared names: normalised primary name appears in 2+ records
-  const nameCounts    = {};
-  const articleCounts = {};
-
-  const tallyName = (r, dt) => {
+  // Count how many times each PRIMARY name appears across all connections
+  // (excluding the anchor itself — a name shared only with the anchor doesn't
+  // count; it has to appear in at least 2 distinct connection records).
+  const nameCounts = {};
+  allItems.forEach(({ record: r, dataType: dt }) => {
     const n = nameOfRecord(r, dt);
     if (n) nameCounts[n] = (nameCounts[n] || 0) + 1;
-  };
-  const tallyArticle = r => {
-    const a = articleTitleOf(r);
-    if (a) articleCounts[a] = (articleCounts[a] || 0) + 1;
-  };
+  });
+  sharedNames = new Set(Object.keys(nameCounts).filter(k => nameCounts[k] > 1));
 
-  tallyName(anchor, anchorType);
-  tallyArticle(anchor);
-  allItems.forEach(({ record: r, dataType: dt }) => { tallyName(r, dt); tallyArticle(r); });
-
-  sharedNames    = new Set(Object.keys(nameCounts).filter(k    => nameCounts[k]    > 1));
-  sharedArticles = new Set(Object.keys(articleCounts).filter(k => articleCounts[k] > 1));
+  // The anchor article title (or primary name if anchor is an article) is
+  // what we compare connection records' article_title fields against.
+  const anchorArticleTitle = anchorType === 'article'
+    ? normalise(anchor.article_title || anchor.article_title || '')
+    : normalise(anchor.article_title || '');
+  // Store for use in sharedFlags
+  sharedArticles = anchorArticleTitle ? new Set([anchorArticleTitle]) : new Set();
 }
 
-// Returns { sharedName: bool, sharedArticle: bool } for a record
+// Returns { sharedName: bool, sharedArticle: bool } for a single connection record.
 function sharedFlags(r, dataType) {
   const n = nameOfRecord(r, dataType);
   const a = articleTitleOf(r);
 
-  // Fuzzy check against all shared name keys
+  // ★ Shared name: this record's primary name also appears as the primary name
+  // of at least one other connection record.
   let sharedName = false;
   if (n) {
     if (sharedNames.has(n)) {
       sharedName = true;
     } else {
+      // Fuzzy fallback: catches minor formatting differences
       for (const sn of sharedNames) {
         if (fuzzyMatch(n, sn)) { sharedName = true; break; }
       }
     }
   }
 
+  // ◆ Shared article: this connection record's article_title matches the
+  // anchor's article title — i.e. it was mentioned in the same article.
+  // Only meaningful when the record has an article_title field (locations &
+  // persons do; articles themselves use their title as primary name instead).
   let sharedArticle = false;
-  if (a) {
-    if (sharedArticles.has(a)) {
-      sharedArticle = true;
-    } else {
-      for (const sa of sharedArticles) {
-        if (fuzzyMatch(a, sa)) { sharedArticle = true; break; }
-      }
+  if (a && dataType !== 'article') {
+    for (const sa of sharedArticles) {
+      if (a === sa || fuzzyMatch(a, sa)) { sharedArticle = true; break; }
     }
   }
 
