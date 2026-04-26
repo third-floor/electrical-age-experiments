@@ -8,295 +8,156 @@
     <style>
 
         /* ══════════════════════════════════════════════════════════════════
-           Layout & page shell
+           Layout
         ══════════════════════════════════════════════════════════════════ */
-        .explorer-container {
-            max-width: 1100px;
-            margin: 2rem auto;
-            padding: 0 20px;
-        }
+        .explorer-container { max-width: 1100px; margin: 2rem auto; padding: 0 20px; }
 
         /* ── Page header ──────────────────────────────────────────────── */
-        .page-header {
-            text-align: center;
-            border-bottom: 3px double #2c2c2c;
-            margin-bottom: 2rem;
-            padding-bottom: 1.5rem;
-        }
-        .page-header h2 {
-            font-family: Georgia, serif;
-            font-size: 2.2rem;
-            letter-spacing: 4px;
-            text-transform: uppercase;
-            margin: 0 0 0.4rem 0;
-        }
-        .page-header .subtitle {
-            font-family: Georgia, serif;
-            font-style: italic;
-            color: #555;
-            font-size: 1rem;
-        }
-        .dataset-meta {
-            margin-top: 0.9rem;
-            font-size: 0.8rem;
-            color: #999;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
+        .page-header { text-align: center; border-bottom: 3px double #2c2c2c; margin-bottom: 2rem; padding-bottom: 1.5rem; }
+        .page-header h2 { font-family: Georgia, serif; font-size: 2.2rem; letter-spacing: 4px; text-transform: uppercase; margin: 0 0 0.4rem 0; }
+        .page-header .subtitle { font-family: Georgia, serif; font-style: italic; color: #555; font-size: 1rem; }
+        .dataset-meta { margin-top: 0.9rem; font-size: 0.8rem; color: #999; letter-spacing: 1px; text-transform: uppercase; }
 
         /* ── Loading ──────────────────────────────────────────────────── */
-        #loading-bar {
-            display: none;
-            text-align: center;
-            padding: 2rem;
-            font-family: Georgia, serif;
-            font-style: italic;
-            color: #888;
-            border: 1px dashed #d3c9b1;
-            background: #fdfaf3;
-            margin-bottom: 1.5rem;
-        }
-        #loading-status {
-            font-family: Georgia, serif;
-            font-size: 0.85rem;
-            color: #aaa;
-            text-align: center;
-            margin-bottom: 1rem;
-            min-height: 1.2em;
-        }
+        #loading-bar { display: none; text-align: center; padding: 2rem; font-family: Georgia, serif; font-style: italic; color: #888; border: 1px dashed #d3c9b1; background: #fdfaf3; margin-bottom: 1.5rem; }
+        #loading-status { font-family: Georgia, serif; font-size: 0.85rem; color: #aaa; text-align: center; margin-bottom: 1rem; min-height: 1.2em; }
 
-        /* ── Search area ──────────────────────────────────────────────── */
-        #search-area {
-            display: none;
-            background: #fdfaf3;
-            border: 1px solid #d3c9b1;
-            padding: 1.25rem;
-            margin-bottom: 1.5rem;
-        }
-        .search-area-hdr {
-            font-family: Georgia, serif;
-            font-variant: small-caps;
-            font-size: 0.82rem;
-            letter-spacing: 0.05em;
-            color: #888;
-            margin-bottom: 0.7rem;
-        }
+        /* ── Person search ────────────────────────────────────────────── */
+        #search-area { display: none; background: #fdfaf3; border: 1px solid #d3c9b1; padding: 1.25rem; margin-bottom: 1.5rem; }
+        .search-area-hdr { font-family: Georgia, serif; font-variant: small-caps; font-size: 0.82rem; letter-spacing: 0.05em; color: #888; margin-bottom: 0.7rem; }
         .search-wrap { position: relative; }
-        #person-search {
-            width: 100%;
-            padding: 0.6rem 1rem;
-            font-size: 1rem;
-            font-family: Georgia, serif;
-            border: 1px solid #ccc;
-            border-radius: 3px;
-            background: #fff;
-            box-sizing: border-box;
-        }
+        #person-search { width: 100%; padding: 0.6rem 1rem; font-size: 1rem; font-family: Georgia, serif; border: 1px solid #ccc; border-radius: 3px; background: #fff; box-sizing: border-box; }
         #person-search:focus { outline: none; border-color: #2c2c2c; }
 
-        /* ── Dropdown ─────────────────────────────────────────────────── */
-        #person-dd {
-            position: absolute;
-            top: calc(100% + 2px);
-            left: 0; right: 0;
-            max-height: 320px;
-            overflow-y: auto;
-            background: #fff;
-            border: 1px solid #ccc;
-            border-top: none;
-            z-index: 300;
-            display: none;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        }
-        .dd-item {
-            padding: 0.4rem 0.85rem;
-            cursor: pointer;
-            border-bottom: 1px solid #f5f5f5;
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
+        /* ── Dropdowns ────────────────────────────────────────────────── */
+        #person-dd { position: absolute; top: calc(100% + 2px); left: 0; right: 0; max-height: 320px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-top: none; z-index: 300; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .dd-item { padding: 0.4rem 0.85rem; cursor: pointer; border-bottom: 1px solid #f5f5f5; display: flex; flex-direction: column; gap: 2px; }
         .dd-item:hover, .dd-item.active { background: #f5f0e8; }
         .dd-title { font-family: Georgia, serif; font-size: 0.87rem; color: #2c2c2c; }
         .dd-meta  { font-family: Georgia, serif; font-size: 0.74rem; color: #aaa; font-style: italic; }
-        .dd-group-label {
-            padding: 0.22rem 0.85rem;
-            font-size: 0.71rem;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            color: #bbb;
-            background: #fafafa;
-            font-family: Georgia, serif;
-            border-bottom: 1px solid #f0f0f0;
-            pointer-events: none;
-        }
+        .dd-group-label { padding: 0.22rem 0.85rem; font-size: 0.71rem; text-transform: uppercase; letter-spacing: 0.06em; color: #bbb; background: #fafafa; font-family: Georgia, serif; border-bottom: 1px solid #f0f0f0; pointer-events: none; }
 
         /* ── Anchor card ──────────────────────────────────────────────── */
-        #anchor-card {
-            margin-bottom: 2.5rem;
-        }
-        .anchor-inner {
-            border: 2px solid #2c2c2c;
-            background: #fdfaf3;
-            overflow: hidden;
-        }
-        .anchor-name {
-            background: #2c2c2c;
-            color: #fff;
-            font-family: Georgia, serif;
-            font-size: 1.15rem;
-            padding: 0.6rem 1rem;
-            letter-spacing: 1px;
-        }
-        .anchor-meta {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-            gap: 0;
-        }
-        .anchor-row {
-            display: flex;
-            gap: 0.5rem;
-            font-family: Georgia, serif;
-            font-size: 0.84rem;
-            padding: 0.35rem 1rem;
-            border-bottom: 1px solid #ede6d8;
-            border-right: 1px solid #ede6d8;
-        }
+        #anchor-card { margin-bottom: 2.5rem; }
+        .anchor-inner { border: 2px solid #2c2c2c; background: #fdfaf3; overflow: hidden; }
+        .anchor-name { background: #2c2c2c; color: #fff; font-family: Georgia, serif; font-size: 1.15rem; padding: 0.6rem 1rem; letter-spacing: 1px; }
+        .anchor-meta { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+        .anchor-row { display: flex; gap: 0.5rem; font-family: Georgia, serif; font-size: 0.84rem; padding: 0.35rem 1rem; border-bottom: 1px solid #ede6d8; border-right: 1px solid #ede6d8; }
         .anchor-key { color: #999; font-size: 0.76rem; flex-shrink: 0; width: 90px; padding-top: 1px; }
         .anchor-val { color: #2c2c2c; }
 
         /* ── Placeholder ──────────────────────────────────────────────── */
-        #placeholder {
-            text-align: center;
-            padding: 4rem 1rem;
-            font-family: Georgia, serif;
-            color: #999;
-            font-style: italic;
-            border: 1px dashed #d3c9b1;
-            background: #fdfaf3;
-        }
+        #placeholder { text-align: center; padding: 4rem 1rem; font-family: Georgia, serif; color: #999; font-style: italic; border: 1px dashed #d3c9b1; background: #fdfaf3; }
 
-        /* ── Section blocks ───────────────────────────────────────────── */
+        /* ── Sections ─────────────────────────────────────────────────── */
         .section-block { margin-bottom: 3rem; }
-        .section-header {
-            border-bottom: 1px solid #2c2c2c;
-            margin-bottom: 1.25rem;
-            padding-bottom: 0.4rem;
-            display: flex;
-            align-items: baseline;
-            gap: 0.75rem;
+        .section-header { border-bottom: 1px solid #2c2c2c; margin-bottom: 1.25rem; padding-bottom: 0.4rem; display: flex; align-items: baseline; gap: 0.75rem; flex-wrap: wrap; }
+        .section-header h3 { font-family: Georgia, serif; font-variant: small-caps; font-size: 1.25rem; letter-spacing: 2px; margin: 0; }
+        .section-number { font-family: Georgia, serif; font-style: italic; color: #999; font-size: 0.9rem; }
+        .section-count  { margin-left: auto; font-family: Georgia, serif; font-size: 0.82rem; color: #888; font-style: italic; }
+        .section-note   { font-family: Georgia, serif; font-style: italic; font-size: 0.88rem; color: #666; margin-bottom: 1.25rem; line-height: 1.6; }
+        .empty-note     { display: none; font-family: Georgia, serif; font-style: italic; color: #bbb; padding: 1rem; border: 1px dashed #d3c9b1; background: #fdfaf3; }
+
+        /* ══════════════════════════════════════════════════════════════════
+           Filter bars
+           Hidden until a person is selected (JS sets display:flex).
+        ══════════════════════════════════════════════════════════════════ */
+        .filter-bar {
+            display: none;          /* shown by JS after anchor is set */
+            align-items: center;
             flex-wrap: wrap;
-        }
-        .section-header h3 {
+            gap: 0.5rem 0.75rem;
+            background: #f5f0e8;
+            border: 1px solid #d3c9b1;
+            border-bottom: none;    /* merges visually with the table */
+            padding: 0.6rem 0.9rem;
             font-family: Georgia, serif;
-            font-variant: small-caps;
-            font-size: 1.25rem;
-            letter-spacing: 2px;
-            margin: 0;
+            font-size: 0.83rem;
         }
-        .section-number {
-            font-family: Georgia, serif;
-            font-style: italic;
-            color: #999;
-            font-size: 0.9rem;
-        }
-        .section-count {
-            margin-left: auto;
-            font-family: Georgia, serif;
-            font-size: 0.82rem;
+        .filter-bar-label {
             color: #888;
-            font-style: italic;
+            font-variant: small-caps;
+            font-size: 0.78rem;
+            letter-spacing: 0.05em;
+            flex-shrink: 0;
         }
-        .section-note {
+        .filter-bar input[type="text"] {
+            padding: 0.3rem 0.65rem;
+            font-size: 0.85rem;
             font-family: Georgia, serif;
-            font-style: italic;
-            font-size: 0.88rem;
-            color: #666;
-            margin-bottom: 1.25rem;
-            line-height: 1.6;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            background: #fff;
+            width: 200px;
         }
-        .empty-note {
+        .filter-bar input[type="text"]:focus { outline: none; border-color: #2c2c2c; }
+        .filter-bar input[type="number"] {
+            padding: 0.3rem 0.5rem;
+            font-size: 0.85rem;
+            font-family: Georgia, serif;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            background: #fff;
+            width: 70px;
+        }
+        .filter-bar input[type="number"]:focus { outline: none; border-color: #2c2c2c; }
+        .filter-year-sep { color: #bbb; font-size: 0.8rem; }
+        .filter-clear-btn {
+            padding: 0.28rem 0.7rem;
+            font-family: Georgia, serif;
+            font-size: 0.8rem;
+            font-style: italic;
+            color: #888;
+            background: #fff;
+            border: 1px solid #d3c9b1;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .filter-clear-btn:hover { background: #fdfaf3; color: #2c2c2c; border-color: #b0a898; }
+
+        /* Match count badge */
+        .filter-status {
+            font-family: Georgia, serif;
+            font-size: 0.78rem;
+            font-style: italic;
+            color: #1565c0;
+            background: #e8f0fb;
+            border: 1px solid #c5d8f5;
+            border-radius: 2px;
+            padding: 0.18rem 0.55rem;
             display: none;
-            font-family: Georgia, serif;
-            font-style: italic;
-            color: #bbb;
-            padding: 1rem;
-            border: 1px dashed #d3c9b1;
-            background: #fdfaf3;
+        }
+        .filter-status-none {
+            color: #b71c1c;
+            background: #fdecea;
+            border-color: #f5c6c2;
         }
 
-        /* ── Figure blocks ────────────────────────────────────────────── */
-        .figure-block {
-            margin: 1.25rem 0;
-            background: #fdfaf3;
-            border: 1px solid #d3c9b1;
-            padding: 16px;
+        /* Highlight matched text in table cells */
+        mark.filter-hl {
+            background: #fff59d;
+            color: #2c2c2c;
+            border-radius: 1px;
+            padding: 0 1px;
         }
-        .figure-caption {
-            font-family: Georgia, serif;
-            font-size: 0.82rem;
-            font-style: italic;
-            color: #666;
-            margin-top: 10px;
-            border-top: 1px solid #e0d8c8;
-            padding-top: 8px;
-        }
-        .figures-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-            margin: 1.25rem 0;
-        }
+
+        /* ── Figures ──────────────────────────────────────────────────── */
+        .figure-block { margin: 1.25rem 0; background: #fdfaf3; border: 1px solid #d3c9b1; padding: 16px; }
+        .figure-caption { font-family: Georgia, serif; font-size: 0.82rem; font-style: italic; color: #666; margin-top: 10px; border-top: 1px solid #e0d8c8; padding-top: 8px; }
+        .figures-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 1.25rem 0; }
         @media (max-width: 720px) { .figures-row { grid-template-columns: 1fr; } }
         .chart-wrap { position: relative; width: 100%; }
 
         /* ── Chart legends ────────────────────────────────────────────── */
-        .chart-legend {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem 1rem;
-            margin-bottom: 0.6rem;
-        }
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            font-family: Georgia, serif;
-            font-size: 0.8rem;
-            color: #444;
-        }
-        .legend-line {
-            width: 22px;
-            height: 3px;
-            display: inline-block;
-            flex-shrink: 0;
-            border-radius: 1px;
-        }
+        .chart-legend { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin-bottom: 0.6rem; }
+        .legend-item  { display: flex; align-items: center; gap: 5px; font-family: Georgia, serif; font-size: 0.8rem; color: #444; }
+        .legend-line  { width: 22px; height: 3px; display: inline-block; flex-shrink: 0; border-radius: 1px; }
 
         /* ── Tables ───────────────────────────────────────────────────── */
         .table-outer { overflow-x: auto; }
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-family: Georgia, serif;
-            font-size: 0.84rem;
-        }
-        .data-table thead th {
-            background: #2c2c2c;
-            color: #fff;
-            padding: 0.42rem 0.75rem;
-            text-align: left;
-            font-weight: normal;
-            font-variant: small-caps;
-            letter-spacing: 0.05em;
-            font-size: 0.78rem;
-            white-space: nowrap;
-        }
-        .data-table tbody td {
-            padding: 0.35rem 0.75rem;
-            border-bottom: 1px solid #e8e0cc;
-            vertical-align: middle;
-        }
+        .data-table { width: 100%; border-collapse: collapse; font-family: Georgia, serif; font-size: 0.84rem; }
+        .data-table thead th { background: #2c2c2c; color: #fff; padding: 0.42rem 0.75rem; text-align: left; font-weight: normal; font-variant: small-caps; letter-spacing: 0.05em; font-size: 0.78rem; white-space: nowrap; }
+        .data-table tbody td { padding: 0.35rem 0.75rem; border-bottom: 1px solid #e8e0cc; vertical-align: middle; }
         .data-table tbody tr:nth-child(even) td { background: #fdfaf3; }
         .data-row { cursor: pointer; transition: background 0.1s; }
         .data-row:hover td { background: #f0e8d8 !important; }
@@ -304,209 +165,62 @@
         .td-count { text-align: right; color: #2c2c2c; white-space: nowrap; }
         .td-meta  { color: #666; font-style: italic; font-size: 0.8rem; }
         .td-drill { text-align: right; white-space: nowrap; }
-        .drill-btn {
-            font-family: Georgia, serif;
-            font-size: 0.78rem;
-            color: #1565c0;
-            font-style: italic;
-            cursor: pointer;
-        }
+        .drill-btn { font-family: Georgia, serif; font-size: 0.78rem; color: #1565c0; font-style: italic; cursor: pointer; }
         .data-row:hover .drill-btn { text-decoration: underline; }
 
         /* ── Expand buttons ───────────────────────────────────────────── */
-        .expand-row-tr td {
-            padding: 0.5rem 0.75rem;
-            border-bottom: none;
-            background: #fdfaf3;
-        }
+        .expand-row-tr td { padding: 0.5rem 0.75rem; border-bottom: none; background: #fdfaf3; }
         .expand-row-btns { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-        .expand-tbl-btn {
-            font-family: Georgia, serif;
-            font-size: 0.8rem;
-            font-style: italic;
-            color: #555;
-            background: #fff;
-            border: 1px solid #d3c9b1;
-            padding: 0.28rem 0.8rem;
-            cursor: pointer;
-            border-radius: 2px;
-        }
+        .expand-tbl-btn { font-family: Georgia, serif; font-size: 0.8rem; font-style: italic; color: #555; background: #fff; border: 1px solid #d3c9b1; padding: 0.28rem 0.8rem; cursor: pointer; border-radius: 2px; }
         .expand-tbl-btn:hover { background: #f5f0e8; border-color: #b0a898; }
         .expand-tbl-all { color: #185FA5; border-color: #a8c4e0; }
         .expand-tbl-all:hover { background: #e8f1fa; }
         .expand-tbl-collapse { color: #aaa; }
 
         /* ── Ornament ─────────────────────────────────────────────────── */
-        .ornament {
-            text-align: center;
-            color: #bbb;
-            font-size: 1.2rem;
-            margin: 2.5rem 0 2rem;
-            letter-spacing: 8px;
-        }
+        .ornament { text-align: center; color: #bbb; font-size: 1.2rem; margin: 2.5rem 0 2rem; letter-spacing: 8px; }
 
         #content { display: none; }
 
         /* ══════════════════════════════════════════════════════════════════
            Drill-through drawer
         ══════════════════════════════════════════════════════════════════ */
-        #drawer-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(44,44,44,0.35);
-            z-index: 800;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-        #drawer-overlay.visible {
-            display: block;
-            opacity: 1;
-        }
-        #entry-drawer {
-            position: fixed;
-            top: 0; right: 0;
-            width: min(600px, 95vw);
-            height: 100vh;
-            background: #fdfaf3;
-            border-left: 2px solid #2c2c2c;
-            z-index: 900;
-            display: flex;
-            flex-direction: column;
-            transform: translateX(100%);
-            transition: transform 0.25s ease;
-            overflow: hidden;
-        }
+        #drawer-overlay { display: none; position: fixed; inset: 0; background: rgba(44,44,44,0.35); z-index: 800; opacity: 0; transition: opacity 0.2s; }
+        #drawer-overlay.visible { display: block; opacity: 1; }
+        #entry-drawer { position: fixed; top: 0; right: 0; width: min(600px, 95vw); height: 100vh; background: #fdfaf3; border-left: 2px solid #2c2c2c; z-index: 900; display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.25s ease; overflow: hidden; }
         #entry-drawer.open { transform: translateX(0); }
-
-        .drawer-header {
-            background: #2c2c2c;
-            color: #fff;
-            padding: 0.9rem 1.1rem;
-            flex-shrink: 0;
-            display: flex;
-            align-items: flex-start;
-            gap: 0.75rem;
-        }
+        .drawer-header { background: #2c2c2c; color: #fff; padding: 0.9rem 1.1rem; flex-shrink: 0; display: flex; align-items: flex-start; gap: 0.75rem; }
         .drawer-header-text { flex: 1; min-width: 0; }
-        #drawer-title {
-            font-family: Georgia, serif;
-            font-size: 1.05rem;
-            font-weight: bold;
-            display: block;
-            margin-bottom: 0.2rem;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        #drawer-subtitle {
-            font-family: Georgia, serif;
-            font-size: 0.8rem;
-            font-style: italic;
-            opacity: 0.72;
-            display: block;
-        }
-        #drawer-close {
-            background: none;
-            border: none;
-            color: #ddd;
-            font-size: 1.3rem;
-            cursor: pointer;
-            line-height: 1;
-            padding: 0;
-            flex-shrink: 0;
-            margin-top: 2px;
-        }
+        #drawer-title { font-family: Georgia, serif; font-size: 1.05rem; font-weight: bold; display: block; margin-bottom: 0.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #drawer-subtitle { font-family: Georgia, serif; font-size: 0.8rem; font-style: italic; opacity: 0.72; display: block; }
+        #drawer-close { background: none; border: none; color: #ddd; font-size: 1.3rem; cursor: pointer; line-height: 1; padding: 0; flex-shrink: 0; margin-top: 2px; }
         #drawer-close:hover { color: #fff; }
-
-        #drawer-body {
-            flex: 1;
-            overflow-y: auto;
-            padding: 1rem 1.1rem 2rem;
-        }
-
-        /* ── Year bars ────────────────────────────────────────────────── */
-        .drawer-section-hdr {
-            font-family: Georgia, serif;
-            font-variant: small-caps;
-            font-size: 0.82rem;
-            letter-spacing: 0.06em;
-            color: #888;
-            border-bottom: 1px solid #d3c9b1;
-            padding-bottom: 0.3rem;
-            margin: 1.25rem 0 0.75rem;
-        }
+        #drawer-body { flex: 1; overflow-y: auto; padding: 1rem 1.1rem 2rem; }
+        .drawer-section-hdr { font-family: Georgia, serif; font-variant: small-caps; font-size: 0.82rem; letter-spacing: 0.06em; color: #888; border-bottom: 1px solid #d3c9b1; padding-bottom: 0.3rem; margin: 1.25rem 0 0.75rem; }
         .drawer-section-hdr:first-child { margin-top: 0; }
-
         .yr-bars { display: flex; flex-direction: column; gap: 4px; margin-bottom: 0.5rem; }
-        .yr-bar-row {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-family: Georgia, serif;
-            font-size: 0.8rem;
-        }
+        .yr-bar-row { display: flex; align-items: center; gap: 0.5rem; font-family: Georgia, serif; font-size: 0.8rem; }
         .yr-label { width: 38px; flex-shrink: 0; color: #888; text-align: right; }
         .yr-bar-wrap { flex: 1; height: 8px; background: #e8e0cc; border-radius: 2px; }
         .yr-bar { height: 8px; background: #2c2c2c; border-radius: 2px; min-width: 2px; }
         .yr-cnt { width: 28px; flex-shrink: 0; color: #555; text-align: right; }
-
-        /* ── Entry cards ──────────────────────────────────────────────── */
-        .entry-card {
-            border: 1px solid #d3c9b1;
-            margin-bottom: 0.6rem;
-            overflow: hidden;
-            font-family: Georgia, serif;
-        }
-        .entry-card-title {
-            padding: 0.38rem 0.75rem;
-            font-size: 0.86rem;
-            font-weight: bold;
-            color: #fff;
-        }
-        .entry-card-person .entry-card-title  { background: #4527a0; }
+        .entry-card { border: 1px solid #d3c9b1; margin-bottom: 0.6rem; overflow: hidden; font-family: Georgia, serif; }
+        .entry-card-title { padding: 0.38rem 0.75rem; font-size: 0.86rem; font-weight: bold; color: #fff; }
+        .entry-card-person .entry-card-title   { background: #4527a0; }
         .entry-card-location .entry-card-title { background: #136348; }
-        .entry-field {
-            display: flex;
-            gap: 0.5rem;
-            font-size: 0.81rem;
-            padding: 0.18rem 0.75rem;
-            border-bottom: 1px solid #f0ebe0;
-            line-height: 1.35;
-        }
+        .entry-field { display: flex; gap: 0.5rem; font-size: 0.81rem; padding: 0.18rem 0.75rem; border-bottom: 1px solid #f0ebe0; line-height: 1.35; }
         .entry-field:last-child { border-bottom: none; }
-        .ef-key {
-            color: #aaa;
-            font-size: 0.74rem;
-            flex-shrink: 0;
-            width: 80px;
-            padding-top: 1px;
-        }
+        .ef-key { color: #aaa; font-size: 0.74rem; flex-shrink: 0; width: 80px; padding-top: 1px; }
         .ef-val { color: #2c2c2c; word-break: break-word; }
-        .entry-extract {
-            padding: 0.3rem 0.75rem 0.5rem;
-            background: #fdfaf3;
-        }
-        .entry-extract summary {
-            cursor: pointer;
-            color: #1565c0;
-            font-style: italic;
-            font-size: 0.82rem;
-        }
+        .entry-extract { padding: 0.3rem 0.75rem 0.5rem; background: #fdfaf3; }
+        .entry-extract summary { cursor: pointer; color: #1565c0; font-style: italic; font-size: 0.82rem; }
         .entry-extract summary:hover { text-decoration: underline; }
-        .entry-extract p {
-            margin: 0.4rem 0 0;
-            padding: 0.4rem 0.6rem;
-            background: #f5f0e8;
-            border-left: 3px solid #d3c9b1;
-            font-size: 0.82rem;
-            line-height: 1.45;
-            color: #333;
-        }
+        .entry-extract p { margin: 0.4rem 0 0; padding: 0.4rem 0.6rem; background: #f5f0e8; border-left: 3px solid #d3c9b1; font-size: 0.82rem; line-height: 1.45; color: #333; }
 
         @media (max-width: 600px) {
             .figures-row { grid-template-columns: 1fr; }
             #entry-drawer { width: 100vw; }
+            .filter-bar input[type="text"] { width: 100%; }
         }
     </style>
 </head>
@@ -534,20 +248,17 @@
 
     <div class="page-header">
         <h2>Person Network</h2>
-        <div class="subtitle">Explore a person's associations with locations and other individuals — and trace every link back to its source entries</div>
+        <div class="subtitle">Explore a person's associations with locations and other individuals — trace every link back to its source entries</div>
         <div class="dataset-meta" id="header-meta">Loading…</div>
     </div>
 
     <div id="loading-bar">Loading data — this may take a moment…</div>
     <div id="loading-status"></div>
 
-    <!-- Search -->
     <div id="search-area">
         <div class="search-area-hdr">Choose a person to explore</div>
         <div class="search-wrap">
-            <input type="text" id="person-search"
-                   placeholder="Type a name to search…"
-                   autocomplete="off">
+            <input type="text" id="person-search" placeholder="Type a name to search…" autocomplete="off">
             <div id="person-dd"></div>
         </div>
     </div>
@@ -559,14 +270,13 @@
 
     <div id="content">
 
-        <!-- Anchor summary -->
         <div id="anchor-card"></div>
 
         <div class="ornament">— ✦ —</div>
 
-        <!-- ══════════════════════════════════════════════════════════════
+        <!-- ══════════════════════════════════════════════════════
              Section A: Location associations
-        ══════════════════════════════════════════════════════════════ -->
+        ══════════════════════════════════════════════════════ -->
         <div class="section-block">
             <div class="section-header">
                 <span class="section-number">A</span>
@@ -574,32 +284,38 @@
                 <span class="section-count" id="loc-total"></span>
             </div>
             <p class="section-note">
-                Locations that appear in the same source files as this person, ordered by frequency.
-                The trend chart shows how co-mentions with the top five locations have changed over time.
-                <strong>Click any table row to see the individual entries behind that association.</strong>
+                Locations appearing in the same source files as this person, ordered by frequency.
+                The trend chart shows co-mentions with the top five locations over time.
+                <strong>Click any row to see the source entries behind that association.</strong>
             </p>
 
             <div class="empty-note" id="loc-empty">No location associations found for this person.</div>
 
             <div id="loc-content">
-                <!-- Charts -->
                 <div class="figures-row">
                     <div class="figure-block">
-                        <div class="chart-wrap" style="height:300px">
-                            <canvas id="ch-loc-bar"></canvas>
-                        </div>
-                        <div class="figure-caption">Top 20 locations by co-mention count (horizontal bar).</div>
+                        <div class="chart-wrap" style="height:300px"><canvas id="ch-loc-bar"></canvas></div>
+                        <div class="figure-caption">Top 20 locations by co-mention count.</div>
                     </div>
                     <div class="figure-block">
                         <div id="loc-trend-legend" class="chart-legend"></div>
-                        <div class="chart-wrap" style="height:265px">
-                            <canvas id="ch-loc-trend"></canvas>
-                        </div>
-                        <div class="figure-caption">3-year rolling co-mention frequency for the top 5 locations over time.</div>
+                        <div class="chart-wrap" style="height:265px"><canvas id="ch-loc-trend"></canvas></div>
+                        <div class="figure-caption">3-year rolling co-mention frequency — top 5 locations over time.</div>
                     </div>
                 </div>
 
-                <!-- Table -->
+                <!-- Filter bar — hidden until anchor is selected -->
+                <div class="filter-bar" id="loc-filter-bar">
+                    <span class="filter-bar-label">Filter:</span>
+                    <input type="text"   id="loc-filter-q"    placeholder="Search locations…" autocomplete="off">
+                    <span class="filter-bar-label">Year:</span>
+                    <input type="number" id="loc-filter-from" placeholder="from">
+                    <span class="filter-year-sep">–</span>
+                    <input type="number" id="loc-filter-to"   placeholder="to">
+                    <button class="filter-clear-btn" id="loc-filter-clear">Clear</button>
+                    <span class="filter-status" id="loc-filter-status"></span>
+                </div>
+
                 <div class="table-outer">
                     <table class="data-table">
                         <thead>
@@ -619,9 +335,9 @@
 
         <div class="ornament">— ✦ —</div>
 
-        <!-- ══════════════════════════════════════════════════════════════
+        <!-- ══════════════════════════════════════════════════════
              Section B: Co-mentioned persons
-        ══════════════════════════════════════════════════════════════ -->
+        ══════════════════════════════════════════════════════ -->
         <div class="section-block">
             <div class="section-header">
                 <span class="section-number">B</span>
@@ -630,31 +346,37 @@
             </div>
             <p class="section-note">
                 Other individuals appearing in the same source files as this person, ordered by frequency.
-                The trend chart shows how co-mentions with the top five individuals have shifted over time.
-                <strong>Click any table row to see the individual entries behind that association.</strong>
+                The trend chart shows how co-mentions with the top five individuals shift over time.
+                <strong>Click any row to see the source entries behind that association.</strong>
             </p>
 
             <div class="empty-note" id="co-empty">No co-mentioned persons found.</div>
 
             <div id="co-content">
-                <!-- Charts -->
                 <div class="figures-row">
                     <div class="figure-block">
-                        <div class="chart-wrap" style="height:300px">
-                            <canvas id="ch-co-bar"></canvas>
-                        </div>
-                        <div class="figure-caption">Top 20 co-mentioned persons by shared-file count (horizontal bar).</div>
+                        <div class="chart-wrap" style="height:300px"><canvas id="ch-co-bar"></canvas></div>
+                        <div class="figure-caption">Top 20 co-mentioned persons by shared-file count.</div>
                     </div>
                     <div class="figure-block">
                         <div id="co-trend-legend" class="chart-legend"></div>
-                        <div class="chart-wrap" style="height:265px">
-                            <canvas id="ch-co-trend"></canvas>
-                        </div>
-                        <div class="figure-caption">3-year rolling co-mention frequency for the top 5 persons over time.</div>
+                        <div class="chart-wrap" style="height:265px"><canvas id="ch-co-trend"></canvas></div>
+                        <div class="figure-caption">3-year rolling co-mention frequency — top 5 persons over time.</div>
                     </div>
                 </div>
 
-                <!-- Table -->
+                <!-- Filter bar -->
+                <div class="filter-bar" id="co-filter-bar">
+                    <span class="filter-bar-label">Filter:</span>
+                    <input type="text"   id="co-filter-q"    placeholder="Search persons…" autocomplete="off">
+                    <span class="filter-bar-label">Year:</span>
+                    <input type="number" id="co-filter-from" placeholder="from">
+                    <span class="filter-year-sep">–</span>
+                    <input type="number" id="co-filter-to"   placeholder="to">
+                    <button class="filter-clear-btn" id="co-filter-clear">Clear</button>
+                    <span class="filter-status" id="co-filter-status"></span>
+                </div>
+
                 <div class="table-outer">
                     <table class="data-table">
                         <thead>
@@ -674,16 +396,12 @@
         </div>
 
     </div><!-- #content -->
-</div><!-- .explorer-container -->
+</div>
 </main>
 
 <footer>© LLM Research Diary</footer>
 
-<!-- ══════════════════════════════════════════════════════════════════════════
-     Drill-through drawer
-══════════════════════════════════════════════════════════════════════════ -->
 <div id="drawer-overlay"></div>
-
 <div id="entry-drawer">
     <div class="drawer-header">
         <div class="drawer-header-text">
@@ -695,12 +413,6 @@
     <div id="drawer-body"></div>
 </div>
 
-<script>
-    // Close drawer on Escape
-    document.addEventListener('keydown', e => {
-        if (e.key === 'Escape' && typeof closeDrawer === 'function') closeDrawer();
-    });
-</script>
 <script src="js/person_network.js"></script>
 </body>
 </html>
