@@ -6,10 +6,6 @@
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
     <style>
-
-        /* ══════════════════════════════════════════════════════════════════
-           Layout
-        ══════════════════════════════════════════════════════════════════ */
         .explorer-container { max-width: 1100px; margin: 2rem auto; padding: 0 20px; }
 
         /* ── Page header ──────────────────────────────────────────────── */
@@ -28,8 +24,6 @@
         .search-wrap { position: relative; }
         #person-search { width: 100%; padding: 0.6rem 1rem; font-size: 1rem; font-family: Georgia, serif; border: 1px solid #ccc; border-radius: 3px; background: #fff; box-sizing: border-box; }
         #person-search:focus { outline: none; border-color: #2c2c2c; }
-
-        /* ── Dropdowns ────────────────────────────────────────────────── */
         #person-dd { position: absolute; top: calc(100% + 2px); left: 0; right: 0; max-height: 320px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-top: none; z-index: 300; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
         .dd-item { padding: 0.4rem 0.85rem; cursor: pointer; border-bottom: 1px solid #f5f5f5; display: flex; flex-direction: column; gap: 2px; }
         .dd-item:hover, .dd-item.active { background: #f5f0e8; }
@@ -58,88 +52,40 @@
         .section-note   { font-family: Georgia, serif; font-style: italic; font-size: 0.88rem; color: #666; margin-bottom: 1.25rem; line-height: 1.6; }
         .empty-note     { display: none; font-family: Georgia, serif; font-style: italic; color: #bbb; padding: 1rem; border: 1px dashed #d3c9b1; background: #fdfaf3; }
 
-        /* ══════════════════════════════════════════════════════════════════
-           Filter bars
-           Hidden until a person is selected (JS sets display:flex).
-        ══════════════════════════════════════════════════════════════════ */
+        /* ── Filter bar ───────────────────────────────────────────────── */
         .filter-bar {
-            display: none;          /* shown by JS after anchor is set */
+            display: none;
             align-items: center;
             flex-wrap: wrap;
             gap: 0.5rem 0.75rem;
             background: #f5f0e8;
             border: 1px solid #d3c9b1;
-            border-bottom: none;    /* merges visually with the table */
+            border-bottom: none;
             padding: 0.6rem 0.9rem;
             font-family: Georgia, serif;
             font-size: 0.83rem;
         }
-        .filter-bar-label {
-            color: #888;
-            font-variant: small-caps;
-            font-size: 0.78rem;
-            letter-spacing: 0.05em;
-            flex-shrink: 0;
-        }
+        .filter-bar-label { color: #888; font-variant: small-caps; font-size: 0.78rem; letter-spacing: 0.05em; flex-shrink: 0; }
         .filter-bar input[type="text"] {
-            padding: 0.3rem 0.65rem;
-            font-size: 0.85rem;
-            font-family: Georgia, serif;
-            border: 1px solid #ccc;
-            border-radius: 3px;
-            background: #fff;
-            width: 200px;
+            padding: 0.3rem 0.65rem; font-size: 0.85rem; font-family: Georgia, serif;
+            border: 1px solid #ccc; border-radius: 3px; background: #fff; width: 200px;
         }
         .filter-bar input[type="text"]:focus { outline: none; border-color: #2c2c2c; }
         .filter-bar input[type="number"] {
-            padding: 0.3rem 0.5rem;
-            font-size: 0.85rem;
-            font-family: Georgia, serif;
-            border: 1px solid #ccc;
-            border-radius: 3px;
-            background: #fff;
-            width: 70px;
+            padding: 0.3rem 0.5rem; font-size: 0.85rem; font-family: Georgia, serif;
+            border: 1px solid #ccc; border-radius: 3px; background: #fff; width: 72px;
         }
         .filter-bar input[type="number"]:focus { outline: none; border-color: #2c2c2c; }
         .filter-year-sep { color: #bbb; font-size: 0.8rem; }
         .filter-clear-btn {
-            padding: 0.28rem 0.7rem;
-            font-family: Georgia, serif;
-            font-size: 0.8rem;
-            font-style: italic;
-            color: #888;
-            background: #fff;
-            border: 1px solid #d3c9b1;
-            border-radius: 3px;
-            cursor: pointer;
+            padding: 0.28rem 0.7rem; font-family: Georgia, serif; font-size: 0.8rem;
+            font-style: italic; color: #888; background: #fff; border: 1px solid #d3c9b1;
+            border-radius: 3px; cursor: pointer;
         }
         .filter-clear-btn:hover { background: #fdfaf3; color: #2c2c2c; border-color: #b0a898; }
-
-        /* Match count badge */
-        .filter-status {
-            font-family: Georgia, serif;
-            font-size: 0.78rem;
-            font-style: italic;
-            color: #1565c0;
-            background: #e8f0fb;
-            border: 1px solid #c5d8f5;
-            border-radius: 2px;
-            padding: 0.18rem 0.55rem;
-            display: none;
-        }
-        .filter-status-none {
-            color: #b71c1c;
-            background: #fdecea;
-            border-color: #f5c6c2;
-        }
-
-        /* Highlight matched text in table cells */
-        mark.filter-hl {
-            background: #fff59d;
-            color: #2c2c2c;
-            border-radius: 1px;
-            padding: 0 1px;
-        }
+        .filter-status { font-family: Georgia, serif; font-size: 0.78rem; font-style: italic; color: #1565c0; background: #e8f0fb; border: 1px solid #c5d8f5; border-radius: 2px; padding: 0.18rem 0.55rem; display: none; }
+        .filter-status-none { color: #b71c1c; background: #fdecea; border-color: #f5c6c2; }
+        mark.filter-hl { background: #fff59d; color: #2c2c2c; border-radius: 1px; padding: 0 1px; }
 
         /* ── Figures ──────────────────────────────────────────────────── */
         .figure-block { margin: 1.25rem 0; background: #fdfaf3; border: 1px solid #d3c9b1; padding: 16px; }
@@ -147,8 +93,6 @@
         .figures-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 1.25rem 0; }
         @media (max-width: 720px) { .figures-row { grid-template-columns: 1fr; } }
         .chart-wrap { position: relative; width: 100%; }
-
-        /* ── Chart legends ────────────────────────────────────────────── */
         .chart-legend { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin-bottom: 0.6rem; }
         .legend-item  { display: flex; align-items: center; gap: 5px; font-family: Georgia, serif; font-size: 0.8rem; color: #444; }
         .legend-line  { width: 22px; height: 3px; display: inline-block; flex-shrink: 0; border-radius: 1px; }
@@ -159,16 +103,14 @@
         .data-table thead th { background: #2c2c2c; color: #fff; padding: 0.42rem 0.75rem; text-align: left; font-weight: normal; font-variant: small-caps; letter-spacing: 0.05em; font-size: 0.78rem; white-space: nowrap; }
         .data-table tbody td { padding: 0.35rem 0.75rem; border-bottom: 1px solid #e8e0cc; vertical-align: middle; }
         .data-table tbody tr:nth-child(even) td { background: #fdfaf3; }
-        .data-row { cursor: pointer; transition: background 0.1s; }
+        .data-row { cursor: pointer; }
         .data-row:hover td { background: #f0e8d8 !important; }
         .td-name  { color: #2c2c2c; font-weight: bold; }
         .td-count { text-align: right; color: #2c2c2c; white-space: nowrap; }
         .td-meta  { color: #666; font-style: italic; font-size: 0.8rem; }
         .td-drill { text-align: right; white-space: nowrap; }
-        .drill-btn { font-family: Georgia, serif; font-size: 0.78rem; color: #1565c0; font-style: italic; cursor: pointer; }
+        .drill-btn { font-family: Georgia, serif; font-size: 0.78rem; color: #1565c0; font-style: italic; }
         .data-row:hover .drill-btn { text-decoration: underline; }
-
-        /* ── Expand buttons ───────────────────────────────────────────── */
         .expand-row-tr td { padding: 0.5rem 0.75rem; border-bottom: none; background: #fdfaf3; }
         .expand-row-btns { display: flex; gap: 0.5rem; flex-wrap: wrap; }
         .expand-tbl-btn { font-family: Georgia, serif; font-size: 0.8rem; font-style: italic; color: #555; background: #fff; border: 1px solid #d3c9b1; padding: 0.28rem 0.8rem; cursor: pointer; border-radius: 2px; }
@@ -177,17 +119,13 @@
         .expand-tbl-all:hover { background: #e8f1fa; }
         .expand-tbl-collapse { color: #aaa; }
 
-        /* ── Ornament ─────────────────────────────────────────────────── */
         .ornament { text-align: center; color: #bbb; font-size: 1.2rem; margin: 2.5rem 0 2rem; letter-spacing: 8px; }
-
         #content { display: none; }
 
-        /* ══════════════════════════════════════════════════════════════════
-           Drill-through drawer
-        ══════════════════════════════════════════════════════════════════ */
+        /* ── Drawer ───────────────────────────────────────────────────── */
         #drawer-overlay { display: none; position: fixed; inset: 0; background: rgba(44,44,44,0.35); z-index: 800; opacity: 0; transition: opacity 0.2s; }
         #drawer-overlay.visible { display: block; opacity: 1; }
-        #entry-drawer { position: fixed; top: 0; right: 0; width: min(600px, 95vw); height: 100vh; background: #fdfaf3; border-left: 2px solid #2c2c2c; z-index: 900; display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.25s ease; overflow: hidden; }
+        #entry-drawer { position: fixed; top: 0; right: 0; width: min(600px,95vw); height: 100vh; background: #fdfaf3; border-left: 2px solid #2c2c2c; z-index: 900; display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.25s ease; overflow: hidden; }
         #entry-drawer.open { transform: translateX(0); }
         .drawer-header { background: #2c2c2c; color: #fff; padding: 0.9rem 1.1rem; flex-shrink: 0; display: flex; align-items: flex-start; gap: 0.75rem; }
         .drawer-header-text { flex: 1; min-width: 0; }
@@ -217,11 +155,7 @@
         .entry-extract summary:hover { text-decoration: underline; }
         .entry-extract p { margin: 0.4rem 0 0; padding: 0.4rem 0.6rem; background: #f5f0e8; border-left: 3px solid #d3c9b1; font-size: 0.82rem; line-height: 1.45; color: #333; }
 
-        @media (max-width: 600px) {
-            .figures-row { grid-template-columns: 1fr; }
-            #entry-drawer { width: 100vw; }
-            .filter-bar input[type="text"] { width: 100%; }
-        }
+        @media (max-width: 600px) { .figures-row { grid-template-columns: 1fr; } #entry-drawer { width: 100vw; } }
     </style>
 </head>
 <body>
@@ -271,12 +205,9 @@
     <div id="content">
 
         <div id="anchor-card"></div>
-
         <div class="ornament">— ✦ —</div>
 
-        <!-- ══════════════════════════════════════════════════════
-             Section A: Location associations
-        ══════════════════════════════════════════════════════ -->
+        <!-- Section A: Locations -->
         <div class="section-block">
             <div class="section-header">
                 <span class="section-number">A</span>
@@ -304,15 +235,27 @@
                     </div>
                 </div>
 
-                <!-- Filter bar — hidden until anchor is selected -->
+                <!--
+                    Filter bar — oninput calls onLocFilterChange() defined in person_network.js.
+                    Reading the DOM at call time means no stale state, no binding issues.
+                -->
                 <div class="filter-bar" id="loc-filter-bar">
                     <span class="filter-bar-label">Filter:</span>
-                    <input type="text"   id="loc-filter-q"    placeholder="Search locations…" autocomplete="off">
+                    <input type="text" id="loc-filter-q"
+                           placeholder="Search locations…"
+                           autocomplete="off"
+                           oninput="onLocFilterChange()">
                     <span class="filter-bar-label">Year:</span>
-                    <input type="number" id="loc-filter-from" placeholder="from">
+                    <input type="number" id="loc-filter-from"
+                           placeholder="from"
+                           oninput="onLocFilterChange()"
+                           onchange="onLocFilterChange()">
                     <span class="filter-year-sep">–</span>
-                    <input type="number" id="loc-filter-to"   placeholder="to">
-                    <button class="filter-clear-btn" id="loc-filter-clear">Clear</button>
+                    <input type="number" id="loc-filter-to"
+                           placeholder="to"
+                           oninput="onLocFilterChange()"
+                           onchange="onLocFilterChange()">
+                    <button class="filter-clear-btn" onclick="onLocFilterClear()">Clear</button>
                     <span class="filter-status" id="loc-filter-status"></span>
                 </div>
 
@@ -335,9 +278,7 @@
 
         <div class="ornament">— ✦ —</div>
 
-        <!-- ══════════════════════════════════════════════════════
-             Section B: Co-mentioned persons
-        ══════════════════════════════════════════════════════ -->
+        <!-- Section B: Co-persons -->
         <div class="section-block">
             <div class="section-header">
                 <span class="section-number">B</span>
@@ -365,15 +306,23 @@
                     </div>
                 </div>
 
-                <!-- Filter bar -->
                 <div class="filter-bar" id="co-filter-bar">
                     <span class="filter-bar-label">Filter:</span>
-                    <input type="text"   id="co-filter-q"    placeholder="Search persons…" autocomplete="off">
+                    <input type="text" id="co-filter-q"
+                           placeholder="Search persons…"
+                           autocomplete="off"
+                           oninput="onCoFilterChange()">
                     <span class="filter-bar-label">Year:</span>
-                    <input type="number" id="co-filter-from" placeholder="from">
+                    <input type="number" id="co-filter-from"
+                           placeholder="from"
+                           oninput="onCoFilterChange()"
+                           onchange="onCoFilterChange()">
                     <span class="filter-year-sep">–</span>
-                    <input type="number" id="co-filter-to"   placeholder="to">
-                    <button class="filter-clear-btn" id="co-filter-clear">Clear</button>
+                    <input type="number" id="co-filter-to"
+                           placeholder="to"
+                           oninput="onCoFilterChange()"
+                           onchange="onCoFilterChange()">
+                    <button class="filter-clear-btn" onclick="onCoFilterClear()">Clear</button>
                     <span class="filter-status" id="co-filter-status"></span>
                 </div>
 
