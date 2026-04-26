@@ -1,20 +1,6 @@
-// person_network.js
-// Explores a single person's associations with:
-//   A) Locations — frequency of co-mention, trend over time
-//   B) Other persons — frequency of co-mention, trend over time
-// All results are drillable: clicking any row opens a detail drawer
-// showing the individual source records behind that association.
-//
-// Data fields used:
-//   persons: standardised_name, person_entry, title, role,
-//            associated_organisation, gender, relation, depicted,
-//            article_title, date, volume_issue, filename, page_number,
-//            brief_extract, brief_context
-//   locations: location_entry, location_standardised, brief_context,
-//              brief_extract, article_title, date, volume_issue,
-//              filename, page_number
-//   The join key between a person record and a co-entry is shared
-//   filename (same source file = co-mentioned in the same issue).
+// person_network.js — v2
+// Adds per-section filter bars (text + year range) that live-update both
+// the table and the charts without re-computing the base data associations.
 
 // ── Data paths ────────────────────────────────────────────────────────────────
 
@@ -54,52 +40,50 @@ const LOCATION_FILES = [
   'locations1984v1.json','locations1985v1.json','locations1986v1.json',
 ].map(f => BASE + f);
 
-// ── Chart.js palette ──────────────────────────────────────────────────────────
+// ── Chart palette ─────────────────────────────────────────────────────────────
 
 const PALETTE = [
   '#1565c0','#c62828','#2e7d32','#6a1b9a',
   '#e65100','#00695c','#ad1457','#4527a0',
   '#558b2f','#0277bd',
 ];
-const DASH_STYLES = [
-  [],
-  [6,3],
-  [3,3],
-  [8,2,2,2],
-  [10,3],
-];
+const DASH_STYLES = [ [], [6,3], [3,3], [8,2,2,2], [10,3] ];
 
-function color(i) { return PALETTE[i % PALETTE.length]; }
+function color(i)     { return PALETTE[i % PALETTE.length]; }
 function dashStyle(i) { return DASH_STYLES[i % DASH_STYLES.length]; }
 
-// ── State ─────────────────────────────────────────────────────────────────────
+// ── Module state ──────────────────────────────────────────────────────────────
 
 let allPersonRecords   = [];
 let allLocationRecords = [];
 
-// Index structures
-let personsByName     = {};   // standardised_name -> [records]
-let personsByFile     = {};   // filename -> [records]
-let locationsByFile   = {};   // filename -> [records]
-let locationsByStd    = {};   // location_standardised -> [records]
+let personsByName   = {};
+let personsByFile   = {};
+let locationsByFile = {};
+let locationsByStd  = {};
 
 let allYears = [];
 let yearMin, yearMax;
 
-let personSearchIndex = []; // { label, subLabel }
-
-// Current anchor person
+let personSearchIndex = [];
 let anchorName = null;
 
-// Chart instances
+// Full unfiltered result arrays — computed once per anchor selection
+let _allLocEntries = [];
+let _allCoEntries  = [];
+
 let charts = {};
 
-// Expand state for tables
 const expandState = {};
 const EXPAND_INITIAL = 15;
 const EXPAND_STEP    = 15;
 
-// Drawer state
+// Filter state per section
+const filterState = {
+  loc: { q: '', yearFrom: '', yearTo: '' },
+  co:  { q: '', yearFrom: '', yearTo: '' },
+};
+
 let drawerOpen = false;
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
@@ -107,15 +91,12 @@ let drawerOpen = false;
 function cleanJSON(t) { return t.replace(/:\s*NaN\s*([,\}])/g, ': null$1'); }
 
 function loadFile(url) {
-  return fetch(url)
-    .then(r => r.text())
-    .then(t => JSON.parse(cleanJSON(t)))
-    .catch(() => []);
+  return fetch(url).then(r => r.text()).then(t => JSON.parse(cleanJSON(t))).catch(() => []);
 }
 
 function short(s, n = 45) {
   if (!s) return '';
-  return s.length <= n ? s : s.slice(0, n - 1) + '…';
+  return s.length <= n ? s : s.slice(0, n - 1) + '\u2026';
 }
 
 function roll(arr, w) {
@@ -124,6 +105,15 @@ function roll(arr, w) {
     const vs = sl.filter(v => v != null && !isNaN(v));
     return vs.length ? vs.reduce((a, b) => a + b, 0) / vs.length : null;
   });
+}
+
+// Safely escape HTML, then wrap matched query text in <mark>
+function highlight(text, q) {
+  const escaped = (text || '').replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  if (!q || !q.trim()) return escaped;
+  const re = new RegExp(q.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+  return escaped.replace(re, m => `<mark class="filter-hl">${m}</mark>`);
 }
 
 function destroyChart(id) {
@@ -141,7 +131,11 @@ function baseOpts(extra = {}) {
   return {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false }, ...extra.plugins },
+    plugins: {
+      legend: { display: false },
+      tooltip: { mode: 'index', intersect: false },
+      ...extra.plugins,
+    },
     scales: {
       x: {
         ticks: { color: '#73726c', font: { size: 9.5, family: 'Georgia, serif' }, maxTicksLimit: 15 },
@@ -160,34 +154,74 @@ function baseOpts(extra = {}) {
   };
 }
 
-// ── Load all data ─────────────────────────────────────────────────────────────
+// ── Filter logic ──────────────────────────────────────────────────────────────
+
+// Returns entries from `all` that pass the current filter for `section`.
+// Text match is against the primary name (e.std for loc, e.name for co).
+// Year filter keeps entries that have co-mentions within [yearFrom, yearTo].
+
+function applyFilter(all, section) {
+  const { q, yearFrom, yearTo } = filterState[section];
+  const ql = q.trim().toLowerCase();
+  const yf = yearFrom ? +yearFrom : null;
+  const yt = yearTo   ? +yearTo   : null;
+
+  return all.filter(e => {
+    const primaryName = section === 'loc' ? (e.std || '') : (e.name || '');
+    if (ql && !primaryName.toLowerCase().includes(ql)) return false;
+
+    if (yf !== null || yt !== null) {
+      const inRange = Object.keys(e.yearMap).some(y => {
+        const yr = +y;
+        return (yf === null || yr >= yf) && (yt === null || yr <= yt) && e.yearMap[y] > 0;
+      });
+      if (!inRange) return false;
+    }
+
+    return true;
+  });
+}
+
+function isFiltered(section) {
+  const { q, yearFrom, yearTo } = filterState[section];
+  return !!(q.trim() || yearFrom || yearTo);
+}
+
+function updateFilterStatus(section, shown, total) {
+  const el = document.getElementById(`${section}-filter-status`);
+  if (!el) return;
+  if (isFiltered(section)) {
+    el.textContent = `${shown.toLocaleString()} of ${total.toLocaleString()} match${shown !== 1 ? 'es' : ''}`;
+    el.style.display = 'inline';
+    el.className = shown === 0 ? 'filter-status filter-status-none' : 'filter-status';
+  } else {
+    el.textContent  = '';
+    el.style.display = 'none';
+  }
+}
+
+// ── Data loading ──────────────────────────────────────────────────────────────
 
 async function loadAll() {
-  setStatus('Loading person records…');
-
+  setStatus('Loading person records\u2026');
   const pArrays = await Promise.all(PERSON_FILES.map(loadFile));
   allPersonRecords = pArrays.flat();
 
-  setStatus('Loading location records…');
-
+  setStatus('Loading location records\u2026');
   const lArrays = await Promise.all(LOCATION_FILES.map(loadFile));
   allLocationRecords = lArrays.flat();
 
-  setStatus('Building indexes…');
+  setStatus('Building indexes\u2026');
   buildIndexes();
 
-  const years = allPersonRecords
-    .map(r => r.date ? +r.date.slice(0, 4) : null)
-    .filter(Boolean);
+  const years = allPersonRecords.map(r => r.date ? +r.date.slice(0, 4) : null).filter(Boolean);
   yearMin = Math.min(...years);
   yearMax = Math.max(...years);
   allYears = Array.from({ length: yearMax - yearMin + 1 }, (_, i) => yearMin + i);
 
-  const totalPersons   = Object.keys(personsByName).length;
-  const totalLocations = Object.keys(locationsByStd).length;
   document.getElementById('header-meta').textContent =
-    `${yearMin}–${yearMax} · ${allPersonRecords.length.toLocaleString()} person records · ` +
-    `${totalPersons.toLocaleString()} distinct persons · ` +
+    `${yearMin}\u2013${yearMax} \u00b7 ${allPersonRecords.length.toLocaleString()} person records \u00b7 ` +
+    `${Object.keys(personsByName).length.toLocaleString()} distinct persons \u00b7 ` +
     `${allLocationRecords.length.toLocaleString()} location records`;
 
   setStatus('');
@@ -196,6 +230,7 @@ async function loadAll() {
 
   attachSearchDropdown();
   attachDrawer();
+  attachFilterListeners();
 }
 
 function setStatus(msg) {
@@ -203,7 +238,6 @@ function setStatus(msg) {
 }
 
 function buildIndexes() {
-  // persons by name
   personsByName = {};
   allPersonRecords.forEach(r => {
     const name = (r.standardised_name || r.person_entry || '').trim();
@@ -212,7 +246,6 @@ function buildIndexes() {
     personsByName[name].push(r);
   });
 
-  // persons by file
   personsByFile = {};
   allPersonRecords.forEach(r => {
     const fn = r.filename || '';
@@ -221,7 +254,6 @@ function buildIndexes() {
     personsByFile[fn].push(r);
   });
 
-  // locations by file
   locationsByFile = {};
   allLocationRecords.forEach(r => {
     const fn = r.filename || '';
@@ -230,7 +262,6 @@ function buildIndexes() {
     locationsByFile[fn].push(r);
   });
 
-  // locations by standardised name
   locationsByStd = {};
   allLocationRecords.forEach(r => {
     const std = (r.location_standardised || r.location_entry || '').trim();
@@ -239,7 +270,6 @@ function buildIndexes() {
     locationsByStd[std].push(r);
   });
 
-  // search index — one entry per distinct person name
   const seen = new Set();
   allPersonRecords.forEach(r => {
     const name = (r.standardised_name || r.person_entry || '').trim();
@@ -250,13 +280,13 @@ function buildIndexes() {
     const orgs  = [...new Set(recs.map(x => x.associated_organisation).filter(Boolean))].slice(0, 1).join('');
     personSearchIndex.push({
       label:    name,
-      subLabel: [roles, orgs, `${recs.length} mention${recs.length !== 1 ? 's' : ''}`].filter(Boolean).join(' · '),
+      subLabel: [roles, orgs, `${recs.length} mention${recs.length !== 1 ? 's' : ''}`].filter(Boolean).join(' \u00b7 '),
     });
   });
   personSearchIndex.sort((a, b) => a.label.localeCompare(b.label));
 }
 
-// ── Search dropdown ───────────────────────────────────────────────────────────
+// ── Person search dropdown ────────────────────────────────────────────────────
 
 function attachSearchDropdown() {
   const input = document.getElementById('person-search');
@@ -290,7 +320,6 @@ function attachSearchDropdown() {
       div.addEventListener('mousedown', e => { e.preventDefault(); selectPerson(entry.label); });
       dd.appendChild(div);
     }
-
     if (sw.length)  { if (inc.length) addGroup(`Starting with "${q}"`); sw.forEach(addItem); }
     if (inc.length) { if (sw.length)  addGroup(`Also containing "${q}"`); inc.forEach(addItem); }
     dd.style.display = 'block';
@@ -310,16 +339,107 @@ function attachSearchDropdown() {
   });
 }
 
-// ── Select person & run analysis ──────────────────────────────────────────────
+// ── Filter bar listeners ──────────────────────────────────────────────────────
+
+function attachFilterListeners() {
+  // Debounce helper for text inputs
+  function debounce(fn, ms) {
+    let t;
+    return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+  }
+
+  // Location filters
+  document.getElementById('loc-filter-q').addEventListener('input', debounce(function() {
+    filterState.loc.q = this.value;
+    expandState.loc = EXPAND_INITIAL;
+    reRenderLocationFiltered();
+  }, 120));
+
+  document.getElementById('loc-filter-from').addEventListener('change', function() {
+    filterState.loc.yearFrom = this.value;
+    expandState.loc = EXPAND_INITIAL;
+    reRenderLocationFiltered();
+  });
+  document.getElementById('loc-filter-to').addEventListener('change', function() {
+    filterState.loc.yearTo = this.value;
+    expandState.loc = EXPAND_INITIAL;
+    reRenderLocationFiltered();
+  });
+  document.getElementById('loc-filter-clear').addEventListener('click', () => {
+    filterState.loc = { q: '', yearFrom: '', yearTo: '' };
+    document.getElementById('loc-filter-q').value    = '';
+    document.getElementById('loc-filter-from').value = '';
+    document.getElementById('loc-filter-to').value   = '';
+    expandState.loc = EXPAND_INITIAL;
+    reRenderLocationFiltered();
+  });
+
+  // Co-person filters
+  document.getElementById('co-filter-q').addEventListener('input', debounce(function() {
+    filterState.co.q = this.value;
+    expandState.co = EXPAND_INITIAL;
+    reRenderCoFiltered();
+  }, 120));
+
+  document.getElementById('co-filter-from').addEventListener('change', function() {
+    filterState.co.yearFrom = this.value;
+    expandState.co = EXPAND_INITIAL;
+    reRenderCoFiltered();
+  });
+  document.getElementById('co-filter-to').addEventListener('change', function() {
+    filterState.co.yearTo = this.value;
+    expandState.co = EXPAND_INITIAL;
+    reRenderCoFiltered();
+  });
+  document.getElementById('co-filter-clear').addEventListener('click', () => {
+    filterState.co = { q: '', yearFrom: '', yearTo: '' };
+    document.getElementById('co-filter-q').value    = '';
+    document.getElementById('co-filter-from').value = '';
+    document.getElementById('co-filter-to').value   = '';
+    expandState.co = EXPAND_INITIAL;
+    reRenderCoFiltered();
+  });
+}
+
+// Re-render location section from filtered entries (no data recomputation)
+function reRenderLocationFiltered() {
+  if (!_allLocEntries.length) return;
+  const filtered = applyFilter(_allLocEntries, 'loc');
+  updateFilterStatus('loc', filtered.length, _allLocEntries.length);
+  renderLocationBarChart(filtered);
+  renderLocationTrendChart(filtered.slice(0, 5));
+  renderLocationTable(filtered);
+}
+
+function reRenderCoFiltered() {
+  if (!_allCoEntries.length) return;
+  const filtered = applyFilter(_allCoEntries, 'co');
+  updateFilterStatus('co', filtered.length, _allCoEntries.length);
+  renderPersonBarChart(filtered);
+  renderPersonTrendChart(filtered.slice(0, 5));
+  renderPersonTable(filtered);
+}
+
+// ── Anchor selection ──────────────────────────────────────────────────────────
 
 function selectPerson(name) {
   anchorName = name;
   document.getElementById('person-search').value     = name;
   document.getElementById('person-dd').style.display = 'none';
 
-  // Clear expand state
+  // Reset filter state
+  filterState.loc = { q: '', yearFrom: '', yearTo: '' };
+  filterState.co  = { q: '', yearFrom: '', yearTo: '' };
+  ['loc-filter-q','loc-filter-from','loc-filter-to',
+   'co-filter-q', 'co-filter-from', 'co-filter-to'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  ['loc-filter-status','co-filter-status'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = ''; el.style.display = 'none'; }
+  });
   Object.keys(expandState).forEach(k => delete expandState[k]);
-
   closeDrawer();
 
   document.getElementById('placeholder').style.display = 'none';
@@ -332,35 +452,24 @@ function selectPerson(name) {
 // ── Master render ─────────────────────────────────────────────────────────────
 
 function renderAll() {
-  const anchorRecs = personsByName[anchorName] || [];
+  const anchorRecs  = personsByName[anchorName] || [];
   const anchorFiles = new Set(anchorRecs.map(r => r.filename).filter(Boolean));
 
-  // ── Compute location associations ─────────────────────────────────────────
-  // For each file the anchor person appears in, collect all location records
-  // from that file. Group by location_standardised. For each, gather:
-  //   - total co-mentions (shared files)
-  //   - per-year count
-  //   - the actual anchor person records and the location records (for drill)
-
-  const locMap = {}; // std -> { count, yearMap, personRecs, locRecs }
-
+  // Location associations
+  const locMap = {};
   anchorFiles.forEach(fn => {
-    const locs     = locationsByFile[fn] || [];
-    // All anchor person records from this file (for entry drill)
+    const locs      = locationsByFile[fn] || [];
     const pRecsHere = (personsByFile[fn] || []).filter(r =>
       (r.standardised_name || r.person_entry || '').trim() === anchorName
     );
-
     locs.forEach(lr => {
       const std = (lr.location_standardised || lr.location_entry || '').trim();
       if (!std) return;
-      if (!locMap[std]) locMap[std] = { count: 0, yearMap: {}, personRecs: [], locRecs: [] };
+      if (!locMap[std]) locMap[std] = { count: 0, yearMap: {}, personRecs: [], locRecs: [], _seenFiles: new Set() };
       locMap[std].count++;
       const yr = lr.date ? +lr.date.slice(0, 4) : null;
       if (yr) locMap[std].yearMap[yr] = (locMap[std].yearMap[yr] || 0) + 1;
       locMap[std].locRecs.push(lr);
-      // Avoid duplicating person recs per location — add once per file
-      if (!locMap[std]._seenFiles) locMap[std]._seenFiles = new Set();
       if (!locMap[std]._seenFiles.has(fn)) {
         locMap[std]._seenFiles.add(fn);
         locMap[std].personRecs.push(...pRecsHere);
@@ -368,15 +477,12 @@ function renderAll() {
     });
   });
 
-  const locEntries = Object.entries(locMap)
+  _allLocEntries = Object.entries(locMap)
     .map(([std, data]) => ({ std, ...data }))
     .sort((a, b) => b.count - a.count);
 
-  // ── Compute person co-associations ────────────────────────────────────────
-  // Same logic: for each shared file, find all other person records.
-
-  const coMap = {}; // standardised_name -> { count, yearMap, anchorRecs, coRecs }
-
+  // Co-person associations
+  const coMap = {};
   anchorFiles.forEach(fn => {
     const others    = (personsByFile[fn] || []).filter(r =>
       (r.standardised_name || r.person_entry || '').trim() !== anchorName
@@ -384,16 +490,14 @@ function renderAll() {
     const pRecsHere = (personsByFile[fn] || []).filter(r =>
       (r.standardised_name || r.person_entry || '').trim() === anchorName
     );
-
     others.forEach(or => {
       const coName = (or.standardised_name || or.person_entry || '').trim();
       if (!coName) return;
-      if (!coMap[coName]) coMap[coName] = { count: 0, yearMap: {}, anchorRecs: [], coRecs: [] };
+      if (!coMap[coName]) coMap[coName] = { count: 0, yearMap: {}, anchorRecs: [], coRecs: [], _seenFiles: new Set() };
       coMap[coName].count++;
       const yr = or.date ? +or.date.slice(0, 4) : null;
       if (yr) coMap[coName].yearMap[yr] = (coMap[coName].yearMap[yr] || 0) + 1;
       coMap[coName].coRecs.push(or);
-      if (!coMap[coName]._seenFiles) coMap[coName]._seenFiles = new Set();
       if (!coMap[coName]._seenFiles.has(fn)) {
         coMap[coName]._seenFiles.add(fn);
         coMap[coName].anchorRecs.push(...pRecsHere);
@@ -401,18 +505,19 @@ function renderAll() {
     });
   });
 
-  const coEntries = Object.entries(coMap)
+  _allCoEntries = Object.entries(coMap)
     .map(([name, data]) => ({ name, ...data }))
     .sort((a, b) => b.count - a.count);
 
-  // Render anchor summary card
+  // Set min/max on year pickers to match this person's actual data span
+  ['loc-filter-from','loc-filter-to','co-filter-from','co-filter-to'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.min = yearMin; el.max = yearMax; el.placeholder = id.endsWith('from') ? yearMin : yearMax; }
+  });
+
   renderAnchorCard(anchorRecs);
-
-  // Render section A
-  renderLocationSection(locEntries);
-
-  // Render section B
-  renderPersonSection(coEntries, anchorRecs);
+  renderLocationSection(_allLocEntries);
+  renderPersonSection(_allCoEntries);
 }
 
 // ── Anchor card ───────────────────────────────────────────────────────────────
@@ -422,24 +527,23 @@ function renderAnchorCard(recs) {
   const roles    = [...new Set(recs.map(r => r.role).filter(Boolean))];
   const orgs     = [...new Set(recs.map(r => r.associated_organisation).filter(Boolean))];
   const years    = recs.map(r => r.date ? +r.date.slice(0, 4) : null).filter(Boolean);
-  const first    = years.length ? Math.min(...years) : '—';
-  const last     = years.length ? Math.max(...years) : '—';
+  const first    = years.length ? Math.min(...years) : '\u2014';
+  const last     = years.length ? Math.max(...years) : '\u2014';
   const depicted = recs.filter(r => r.depicted === 'Yes').length;
 
   function row(k, v) {
     return v ? `<div class="anchor-row"><span class="anchor-key">${k}</span><span class="anchor-val">${v}</span></div>` : '';
   }
-
   document.getElementById('anchor-card').innerHTML = `
     <div class="anchor-inner">
       <div class="anchor-name">${anchorName}</div>
       <div class="anchor-meta">
         ${row('Total mentions', recs.length.toLocaleString())}
-        ${row('Period', first !== '—' ? `${first}–${last}` : '—')}
-        ${row('Gender', genders.join(', ') || '—')}
-        ${row('Depicted', depicted > 0 ? `Yes (${depicted}×)` : 'Not depicted')}
-        ${row('Roles', roles.slice(0, 4).join('; ') || '—')}
-        ${row('Organisations', orgs.slice(0, 3).join('; ') || '—')}
+        ${row('Period', first !== '\u2014' ? `${first}\u2013${last}` : '\u2014')}
+        ${row('Gender', genders.join(', ') || '\u2014')}
+        ${row('Depicted', depicted > 0 ? `Yes (${depicted}\u00d7)` : 'Not depicted')}
+        ${row('Roles', roles.slice(0, 4).join('; ') || '\u2014')}
+        ${row('Organisations', orgs.slice(0, 3).join('; ') || '\u2014')}
       </div>
     </div>`;
 }
@@ -452,20 +556,18 @@ function renderLocationSection(entries) {
     `${total.toLocaleString()} distinct location${total !== 1 ? 's' : ''}`;
 
   if (!total) {
-    document.getElementById('loc-empty').style.display = 'block';
+    document.getElementById('loc-empty').style.display   = 'block';
     document.getElementById('loc-content').style.display = 'none';
+    document.getElementById('loc-filter-bar').style.display = 'none';
     return;
   }
-  document.getElementById('loc-empty').style.display   = 'none';
-  document.getElementById('loc-content').style.display = 'block';
+  document.getElementById('loc-empty').style.display      = 'none';
+  document.getElementById('loc-content').style.display    = 'block';
+  document.getElementById('loc-filter-bar').style.display = 'flex';
+  updateFilterStatus('loc', entries.length, _allLocEntries.length);
 
-  // Top-N chart (bar)
   renderLocationBarChart(entries);
-
-  // Trend chart (top 5 over time)
   renderLocationTrendChart(entries.slice(0, 5));
-
-  // Table
   renderLocationTable(entries);
 }
 
@@ -499,30 +601,26 @@ function renderLocationBarChart(entries) {
 }
 
 function renderLocationTrendChart(topEntries) {
-  const datasets = topEntries.map((e, i) => {
-    const vals = allYears.map(y => e.yearMap[y] || 0);
-    return {
-      label:       short(e.std, 30),
-      data:        roll(vals, 3),
-      borderColor: color(i),
-      borderDash:  dashStyle(i),
-      borderWidth: 2,
-      pointRadius: 2,
-      pointHoverRadius: 4,
-      tension:     0.4,
-      fill:        false,
-    };
-  });
+  const datasets = topEntries.map((e, i) => ({
+    label:       short(e.std, 30),
+    data:        roll(allYears.map(y => e.yearMap[y] || 0), 3),
+    borderColor: color(i),
+    borderDash:  dashStyle(i),
+    borderWidth: 2,
+    pointRadius: 2,
+    pointHoverRadius: 4,
+    tension:     0.4,
+    fill:        false,
+  }));
 
-  // Build legend
   const legendEl = document.getElementById('loc-trend-legend');
   if (legendEl) {
     legendEl.innerHTML = topEntries.map((e, i) => {
       const d = dashStyle(i);
-      const dashCss = d.length
+      const css = d.length
         ? `background:repeating-linear-gradient(90deg,${color(i)} 0,${color(i)} ${d[0]}px,transparent ${d[0]}px,transparent ${d[0]+(d[1]||4)}px)`
         : `background:${color(i)}`;
-      return `<span class="legend-item"><span class="legend-line" style="${dashCss}"></span>${short(e.std, 35)}</span>`;
+      return `<span class="legend-item"><span class="legend-line" style="${css}"></span>${short(e.std, 35)}</span>`;
     }).join('');
   }
 
@@ -532,55 +630,47 @@ function renderLocationTrendChart(topEntries) {
   charts['ch-loc-trend'] = new Chart(c, {
     type: 'line',
     data: { labels: allYears, datasets },
-    options: baseOpts({ plugins: { legend: { display: false } } }),
+    options: baseOpts(),
   });
 }
 
 function renderLocationTable(entries) {
-  renderExpandableSection(
-    'loc-table',
-    entries,
-    (e, rowIdx) => buildLocRow(e, rowIdx),
-    'loc'
-  );
+  renderExpandableSection('loc-table', entries, (e, i) => buildLocRow(e, i), 'loc');
 }
 
 function buildLocRow(e, rowIdx) {
-  const yearRange = Object.keys(e.yearMap).length
-    ? `${Math.min(...Object.keys(e.yearMap).map(Number))}–${Math.max(...Object.keys(e.yearMap).map(Number))}`
-    : '—';
-  const peakYear = Object.entries(e.yearMap).sort((a, b) => b[1] - a[1])[0];
+  const years    = Object.keys(e.yearMap).map(Number);
+  const yearRange = years.length ? `${Math.min(...years)}\u2013${Math.max(...years)}` : '\u2014';
+  const peakYear  = Object.entries(e.yearMap).sort((a, b) => b[1] - a[1])[0];
   return `<tr class="data-row" data-section="loc" data-idx="${rowIdx}" title="Click to view individual entries">
-    <td class="td-name">${e.std}</td>
+    <td class="td-name">${highlight(e.std, filterState.loc.q)}</td>
     <td class="td-count">${e.count}</td>
     <td class="td-meta">${yearRange}</td>
-    <td class="td-meta">${peakYear ? `${peakYear[0]} (${peakYear[1]})` : '—'}</td>
-    <td class="td-drill"><span class="drill-btn">View entries →</span></td>
+    <td class="td-meta">${peakYear ? `${peakYear[0]} (${peakYear[1]})` : '\u2014'}</td>
+    <td class="td-drill"><span class="drill-btn">View entries \u2192</span></td>
   </tr>`;
 }
 
 // ── Section B: Co-persons ─────────────────────────────────────────────────────
 
-function renderPersonSection(entries, anchorRecs) {
+function renderPersonSection(entries) {
   const total = entries.length;
   document.getElementById('co-total').textContent =
     `${total.toLocaleString()} co-mentioned person${total !== 1 ? 's' : ''}`;
 
   if (!total) {
-    document.getElementById('co-empty').style.display = 'block';
+    document.getElementById('co-empty').style.display   = 'block';
     document.getElementById('co-content').style.display = 'none';
+    document.getElementById('co-filter-bar').style.display = 'none';
     return;
   }
-  document.getElementById('co-empty').style.display   = 'none';
-  document.getElementById('co-content').style.display = 'block';
+  document.getElementById('co-empty').style.display      = 'none';
+  document.getElementById('co-content').style.display    = 'block';
+  document.getElementById('co-filter-bar').style.display = 'flex';
+  updateFilterStatus('co', entries.length, _allCoEntries.length);
 
-  // Top bar chart
   renderPersonBarChart(entries);
-
-  // Trend chart (top 5)
   renderPersonTrendChart(entries.slice(0, 5));
-
-  // Table
   renderPersonTable(entries);
 }
 
@@ -614,29 +704,26 @@ function renderPersonBarChart(entries) {
 }
 
 function renderPersonTrendChart(topEntries) {
-  const datasets = topEntries.map((e, i) => {
-    const vals = allYears.map(y => e.yearMap[y] || 0);
-    return {
-      label:       short(e.name, 30),
-      data:        roll(vals, 3),
-      borderColor: color(i),
-      borderDash:  dashStyle(i),
-      borderWidth: 2,
-      pointRadius: 2,
-      pointHoverRadius: 4,
-      tension:     0.4,
-      fill:        false,
-    };
-  });
+  const datasets = topEntries.map((e, i) => ({
+    label:       short(e.name, 30),
+    data:        roll(allYears.map(y => e.yearMap[y] || 0), 3),
+    borderColor: color(i),
+    borderDash:  dashStyle(i),
+    borderWidth: 2,
+    pointRadius: 2,
+    pointHoverRadius: 4,
+    tension:     0.4,
+    fill:        false,
+  }));
 
   const legendEl = document.getElementById('co-trend-legend');
   if (legendEl) {
     legendEl.innerHTML = topEntries.map((e, i) => {
       const d = dashStyle(i);
-      const dashCss = d.length
+      const css = d.length
         ? `background:repeating-linear-gradient(90deg,${color(i)} 0,${color(i)} ${d[0]}px,transparent ${d[0]}px,transparent ${d[0]+(d[1]||4)}px)`
         : `background:${color(i)}`;
-      return `<span class="legend-item"><span class="legend-line" style="${dashCss}"></span>${short(e.name, 35)}</span>`;
+      return `<span class="legend-item"><span class="legend-line" style="${css}"></span>${short(e.name, 35)}</span>`;
     }).join('');
   }
 
@@ -646,56 +733,49 @@ function renderPersonTrendChart(topEntries) {
   charts['ch-co-trend'] = new Chart(c, {
     type: 'line',
     data: { labels: allYears, datasets },
-    options: baseOpts({ plugins: { legend: { display: false } } }),
+    options: baseOpts(),
   });
 }
 
 function renderPersonTable(entries) {
-  renderExpandableSection(
-    'co-table',
-    entries,
-    (e, rowIdx) => buildCoRow(e, rowIdx),
-    'co'
-  );
+  renderExpandableSection('co-table', entries, (e, i) => buildCoRow(e, i), 'co');
 }
 
 function buildCoRow(e, rowIdx) {
   const recs      = personsByName[e.name] || [];
   const roles     = [...new Set(recs.map(r => r.role).filter(Boolean))].slice(0, 2).join(', ');
-  const yearRange = Object.keys(e.yearMap).length
-    ? `${Math.min(...Object.keys(e.yearMap).map(Number))}–${Math.max(...Object.keys(e.yearMap).map(Number))}`
-    : '—';
+  const years     = Object.keys(e.yearMap).map(Number);
+  const yearRange = years.length ? `${Math.min(...years)}\u2013${Math.max(...years)}` : '\u2014';
   const peakYear  = Object.entries(e.yearMap).sort((a, b) => b[1] - a[1])[0];
   return `<tr class="data-row" data-section="co" data-idx="${rowIdx}" title="Click to view individual entries">
-    <td class="td-name">${e.name}</td>
+    <td class="td-name">${highlight(e.name, filterState.co.q)}</td>
     <td class="td-count">${e.count}</td>
-    <td class="td-meta">${roles || '—'}</td>
+    <td class="td-meta">${roles || '\u2014'}</td>
     <td class="td-meta">${yearRange}</td>
-    <td class="td-meta">${peakYear ? `${peakYear[0]} (${peakYear[1]})` : '—'}</td>
-    <td class="td-drill"><span class="drill-btn">View entries →</span></td>
+    <td class="td-meta">${peakYear ? `${peakYear[0]} (${peakYear[1]})` : '\u2014'}</td>
+    <td class="td-drill"><span class="drill-btn">View entries \u2192</span></td>
   </tr>`;
 }
 
-// ── Expandable table helper ───────────────────────────────────────────────────
+// ── Expandable table ──────────────────────────────────────────────────────────
 
 function renderExpandableSection(containerId, entries, rowBuilder, section) {
   const container = document.getElementById(containerId);
   if (!container) return;
+
   const limit   = expandState[section] !== undefined ? expandState[section] : EXPAND_INITIAL;
   const showing = Math.min(limit, entries.length);
   const hidden  = entries.length - showing;
 
-  // Store entries on window for drill-through access
   window[`_entries_${section}`] = entries;
 
   let html = entries.slice(0, showing).map((e, i) => rowBuilder(e, i)).join('');
 
   if (hidden > 0) {
-    const next = Math.min(showing + EXPAND_STEP, entries.length);
     html += `<tr class="expand-row-tr">
       <td colspan="10">
         <div class="expand-row-btns">
-          <button class="expand-tbl-btn" onclick="expandSection('${section}', ${next})">Show ${Math.min(EXPAND_STEP, hidden)} more (${hidden} remaining)</button>
+          <button class="expand-tbl-btn" onclick="expandSection('${section}', ${showing + EXPAND_STEP})">Show ${Math.min(EXPAND_STEP, hidden)} more (${hidden} remaining)</button>
           <button class="expand-tbl-btn expand-tbl-all" onclick="expandSection('${section}', ${entries.length})">Show all ${entries.length}</button>
         </div>
       </td>
@@ -712,7 +792,6 @@ function renderExpandableSection(containerId, entries, rowBuilder, section) {
 
   container.innerHTML = html;
 
-  // Attach click-to-drill events
   container.querySelectorAll('.data-row').forEach(row => {
     row.addEventListener('click', () => {
       const idx  = +row.dataset.idx;
@@ -725,14 +804,13 @@ function renderExpandableSection(containerId, entries, rowBuilder, section) {
 
 function expandSection(section, limit) {
   expandState[section] = limit;
-  // Re-render just this table
   const ents = window[`_entries_${section}`];
   if (!ents) return;
-  if (section === 'loc') renderExpandableSection('loc-table', ents, (e, i) => buildLocRow(e, i), 'loc');
-  else                   renderExpandableSection('co-table',  ents, (e, i) => buildCoRow(e, i),  'co');
+  if (section === 'loc') renderLocationTable(ents);
+  else                   renderPersonTable(ents);
 }
 
-// ── Drawer (drill-through to individual entries) ──────────────────────────────
+// ── Drawer ────────────────────────────────────────────────────────────────────
 
 function attachDrawer() {
   document.getElementById('drawer-close').addEventListener('click', closeDrawer);
@@ -740,78 +818,50 @@ function attachDrawer() {
 }
 
 function openDrawer(entry, section) {
-  const drawer  = document.getElementById('entry-drawer');
-  const overlay = document.getElementById('drawer-overlay');
-  const title   = document.getElementById('drawer-title');
-  const sub     = document.getElementById('drawer-subtitle');
-  const body    = document.getElementById('drawer-body');
-
+  const title = document.getElementById('drawer-title');
+  const sub   = document.getElementById('drawer-subtitle');
+  const body  = document.getElementById('drawer-body');
   let html = '';
 
   if (section === 'loc') {
-    // entry has: std, count, yearMap, personRecs, locRecs
     title.textContent = entry.std;
     sub.textContent   = `${entry.count} co-mention${entry.count !== 1 ? 's' : ''} with ${anchorName}`;
 
-    // Year frequency mini-bar
     const peakCount = Math.max(...Object.values(entry.yearMap), 1);
-    const yearBars  = Object.entries(entry.yearMap)
-      .sort((a, b) => +a[0] - +b[0])
+    const yearBars  = Object.entries(entry.yearMap).sort((a, b) => +a[0] - +b[0])
       .map(([yr, cnt]) => {
         const pct = Math.round(cnt / peakCount * 100);
         return `<div class="yr-bar-row"><span class="yr-label">${yr}</span><div class="yr-bar-wrap"><div class="yr-bar" style="width:${pct}%"></div></div><span class="yr-cnt">${cnt}</span></div>`;
       }).join('');
-    html += `<div class="drawer-section-hdr">Frequency by year</div>
-      <div class="yr-bars">${yearBars}</div>`;
-
-    // Location records
+    html += `<div class="drawer-section-hdr">Frequency by year</div><div class="yr-bars">${yearBars}</div>`;
     html += `<div class="drawer-section-hdr">Location entries (${entry.locRecs.length})</div>`;
-    entry.locRecs.forEach(r => {
-      html += buildLocationCard(r);
-    });
-
-    // Anchor person records from those same files
+    entry.locRecs.forEach(r => { html += buildLocationCard(r); });
     if (entry.personRecs.length) {
       html += `<div class="drawer-section-hdr">${anchorName} entries from same files (${entry.personRecs.length})</div>`;
-      entry.personRecs.forEach(r => {
-        html += buildPersonCard(r);
-      });
+      entry.personRecs.forEach(r => { html += buildPersonCard(r); });
     }
-
   } else {
-    // co-person: entry has: name, count, yearMap, anchorRecs, coRecs
     title.textContent = entry.name;
     sub.textContent   = `${entry.count} co-mention${entry.count !== 1 ? 's' : ''} with ${anchorName} (shared files)`;
 
-    // Year frequency mini-bar
     const peakCount = Math.max(...Object.values(entry.yearMap), 1);
-    const yearBars  = Object.entries(entry.yearMap)
-      .sort((a, b) => +a[0] - +b[0])
+    const yearBars  = Object.entries(entry.yearMap).sort((a, b) => +a[0] - +b[0])
       .map(([yr, cnt]) => {
         const pct = Math.round(cnt / peakCount * 100);
         return `<div class="yr-bar-row"><span class="yr-label">${yr}</span><div class="yr-bar-wrap"><div class="yr-bar" style="width:${pct}%"></div></div><span class="yr-cnt">${cnt}</span></div>`;
       }).join('');
-    html += `<div class="drawer-section-hdr">Frequency by year</div>
-      <div class="yr-bars">${yearBars}</div>`;
-
-    // The co-person's own records in those shared files
+    html += `<div class="drawer-section-hdr">Frequency by year</div><div class="yr-bars">${yearBars}</div>`;
     html += `<div class="drawer-section-hdr">${entry.name} entries (${entry.coRecs.length})</div>`;
-    entry.coRecs.forEach(r => {
-      html += buildPersonCard(r);
-    });
-
-    // Anchor person records from those same files
+    entry.coRecs.forEach(r => { html += buildPersonCard(r); });
     if (entry.anchorRecs.length) {
       html += `<div class="drawer-section-hdr">${anchorName} entries from same files (${entry.anchorRecs.length})</div>`;
-      entry.anchorRecs.forEach(r => {
-        html += buildPersonCard(r);
-      });
+      entry.anchorRecs.forEach(r => { html += buildPersonCard(r); });
     }
   }
 
   body.innerHTML = html;
-  drawer.classList.add('open');
-  overlay.classList.add('visible');
+  document.getElementById('entry-drawer').classList.add('open');
+  document.getElementById('drawer-overlay').classList.add('visible');
   drawerOpen = true;
   document.body.style.overflow = 'hidden';
 }
@@ -828,7 +878,7 @@ function buildPersonCard(r) {
     return v ? `<div class="entry-field"><span class="ef-key">${k}</span><span class="ef-val">${v}</span></div>` : '';
   }
   return `<div class="entry-card entry-card-person">
-    <div class="entry-card-title">${r.standardised_name || r.person_entry || '—'}</div>
+    <div class="entry-card-title">${r.standardised_name || r.person_entry || '\u2014'}</div>
     ${f('As appears', r.person_entry)}
     ${f('Title', r.title)}
     ${f('Role', r.role)}
@@ -850,7 +900,7 @@ function buildLocationCard(r) {
     return v ? `<div class="entry-field"><span class="ef-key">${k}</span><span class="ef-val">${v}</span></div>` : '';
   }
   return `<div class="entry-card entry-card-location">
-    <div class="entry-card-title">${r.location_standardised || r.location_entry || '—'}</div>
+    <div class="entry-card-title">${r.location_standardised || r.location_entry || '\u2014'}</div>
     ${f('As appears', r.location_entry !== r.location_standardised ? r.location_entry : '')}
     ${f('Context', r.brief_context)}
     ${f('Article', r.article_title)}
@@ -864,8 +914,12 @@ function buildLocationCard(r) {
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && drawerOpen) closeDrawer();
+});
+
 document.getElementById('loading-bar').style.display = 'block';
 loadAll().catch(err => {
   console.error('Failed to load data:', err);
-  setStatus('Error loading data — check the assets/data_date/ folder is present.');
+  setStatus('Error loading data \u2014 check the assets/data_date/ folder is present.');
 });
