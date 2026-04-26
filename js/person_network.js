@@ -342,60 +342,50 @@ function attachSearchDropdown() {
 // ── Filter bar listeners ──────────────────────────────────────────────────────
 
 function attachFilterListeners() {
-  // Debounce helper for text inputs
-  function debounce(fn, ms) {
-    let t;
-    return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
-  }
+  // Read element values by explicit reference — avoids `this` binding issues
+  // with debounce wrappers. Text inputs use 'input' for live response;
+  // year inputs use both 'input' and 'change' to cover typed entry and spinners.
+
+  const locQ    = document.getElementById('loc-filter-q');
+  const locFrom = document.getElementById('loc-filter-from');
+  const locTo   = document.getElementById('loc-filter-to');
+  const locClear = document.getElementById('loc-filter-clear');
+
+  const coQ    = document.getElementById('co-filter-q');
+  const coFrom = document.getElementById('co-filter-from');
+  const coTo   = document.getElementById('co-filter-to');
+  const coClear = document.getElementById('co-filter-clear');
 
   // Location filters
-  document.getElementById('loc-filter-q').addEventListener('input', debounce(function() {
-    filterState.loc.q = this.value;
-    expandState.loc = EXPAND_INITIAL;
-    reRenderLocationFiltered();
-  }, 120));
-
-  document.getElementById('loc-filter-from').addEventListener('change', function() {
-    filterState.loc.yearFrom = this.value;
+  locQ.addEventListener('input', () => {
+    filterState.loc.q = locQ.value;
     expandState.loc = EXPAND_INITIAL;
     reRenderLocationFiltered();
   });
-  document.getElementById('loc-filter-to').addEventListener('change', function() {
-    filterState.loc.yearTo = this.value;
-    expandState.loc = EXPAND_INITIAL;
-    reRenderLocationFiltered();
-  });
-  document.getElementById('loc-filter-clear').addEventListener('click', () => {
+  locFrom.addEventListener('input',  () => { filterState.loc.yearFrom = locFrom.value; expandState.loc = EXPAND_INITIAL; reRenderLocationFiltered(); });
+  locFrom.addEventListener('change', () => { filterState.loc.yearFrom = locFrom.value; expandState.loc = EXPAND_INITIAL; reRenderLocationFiltered(); });
+  locTo.addEventListener('input',    () => { filterState.loc.yearTo   = locTo.value;   expandState.loc = EXPAND_INITIAL; reRenderLocationFiltered(); });
+  locTo.addEventListener('change',   () => { filterState.loc.yearTo   = locTo.value;   expandState.loc = EXPAND_INITIAL; reRenderLocationFiltered(); });
+  locClear.addEventListener('click', () => {
     filterState.loc = { q: '', yearFrom: '', yearTo: '' };
-    document.getElementById('loc-filter-q').value    = '';
-    document.getElementById('loc-filter-from').value = '';
-    document.getElementById('loc-filter-to').value   = '';
+    locQ.value = ''; locFrom.value = ''; locTo.value = '';
     expandState.loc = EXPAND_INITIAL;
     reRenderLocationFiltered();
   });
 
   // Co-person filters
-  document.getElementById('co-filter-q').addEventListener('input', debounce(function() {
-    filterState.co.q = this.value;
-    expandState.co = EXPAND_INITIAL;
-    reRenderCoFiltered();
-  }, 120));
-
-  document.getElementById('co-filter-from').addEventListener('change', function() {
-    filterState.co.yearFrom = this.value;
+  coQ.addEventListener('input', () => {
+    filterState.co.q = coQ.value;
     expandState.co = EXPAND_INITIAL;
     reRenderCoFiltered();
   });
-  document.getElementById('co-filter-to').addEventListener('change', function() {
-    filterState.co.yearTo = this.value;
-    expandState.co = EXPAND_INITIAL;
-    reRenderCoFiltered();
-  });
-  document.getElementById('co-filter-clear').addEventListener('click', () => {
+  coFrom.addEventListener('input',  () => { filterState.co.yearFrom = coFrom.value; expandState.co = EXPAND_INITIAL; reRenderCoFiltered(); });
+  coFrom.addEventListener('change', () => { filterState.co.yearFrom = coFrom.value; expandState.co = EXPAND_INITIAL; reRenderCoFiltered(); });
+  coTo.addEventListener('input',    () => { filterState.co.yearTo   = coTo.value;   expandState.co = EXPAND_INITIAL; reRenderCoFiltered(); });
+  coTo.addEventListener('change',   () => { filterState.co.yearTo   = coTo.value;   expandState.co = EXPAND_INITIAL; reRenderCoFiltered(); });
+  coClear.addEventListener('click', () => {
     filterState.co = { q: '', yearFrom: '', yearTo: '' };
-    document.getElementById('co-filter-q').value    = '';
-    document.getElementById('co-filter-from').value = '';
-    document.getElementById('co-filter-to').value   = '';
+    coQ.value = ''; coFrom.value = ''; coTo.value = '';
     expandState.co = EXPAND_INITIAL;
     reRenderCoFiltered();
   });
