@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>LLM Development Diary</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Courier+Prime:wght@400;700&display=swap');
+
+        :root {
+            --ink: #1a1a1a;
+            --paper: #f5f0e8;
+            --cream: #ede8da;
+            --rule: #2c2c2c;
+            --accent: #8b1a1a;
+            --muted: #666;
+            --panel-1: #2c2c2c;
+            --panel-2: #1a3a2a;
+            --panel-3: #1a1a3a;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Courier Prime', monospace;
+            margin: 0;
+            padding: 0;
+            background-color: var(--paper);
+            color: var(--ink);
+            line-height: 1.6;
+        }
+
+        header {
+            background: var(--rule);
+            color: white;
+            padding: 1.4rem 2rem;
+            border-bottom: 4px solid var(--accent);
+        }
+
+        header h1 {
+            margin: 0 0 0.3rem 0;
+            font-family: 'Playfair Display', serif;
+            font-size: 2rem;
+            font-weight: 900;
+            letter-spacing: 0.02em;
+        }
+
+        nav {
+            margin-top: 0.4rem;
+            font-size: 0.78rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        nav a {
+            color: #aaa;
+            margin-right: 1.2rem;
+            text-decoration: none;
+        }
+
+        nav a:hover { color: white; }
+
+        /* ── MAIN HUB ── */
+        main {
+            max-width: 1000px;
+            margin: 3rem auto;
+            padding: 0 1.5rem;
+        }
+
+        .hub-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 0.85rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 1.8rem;
+            padding-bottom: 0.6rem;
+            border-bottom: 1px solid #ccc;
+        }
+
+        /* ── THREE PANELS ── */
+        .panels {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.2rem;
+        }
+
+        .panel {
+            cursor: pointer;
+            position: relative;
+        }
+
+        .panel-btn {
+            display: block;
+            width: 100%;
+            padding: 2.4rem 1.6rem;
+            border: none;
+            cursor: pointer;
+            font-family: 'Playfair Display', serif;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: white;
+            text-align: left;
+            position: relative;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+            outline: none;
+        }
+
+        .panel-btn::after {
+            content: '';
+            display: block;
+            width: 2rem;
+            height: 2px;
+            background: rgba(255,255,255,0.4);
+            margin-top: 1rem;
+            transition: width 0.25s ease;
+        }
+
+        .panel-btn:hover::after,
+        .panel.open .panel-btn::after {
+            width: 4rem;
+            background: rgba(255,255,255,0.85);
+        }
+
+        .panel-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+        }
+
+        .panel.open .panel-btn {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+        }
+
+        .panel-1 .panel-btn { background: var(--panel-1); }
+        .panel-2 .panel-btn { background: var(--panel-2); }
+        .panel-3 .panel-btn { background: var(--panel-3); }
+
+        .panel-num {
+            display: block;
+            font-family: 'Courier Prime', monospace;
+            font-size: 0.7rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.45);
+            margin-bottom: 0.6rem;
+        }
+
+        /* Toggle arrow */
+        .panel-arrow {
+            position: absolute;
+            top: 1.4rem;
+            right: 1.4rem;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.5);
+            transition: transform 0.25s ease, color 0.2s ease;
+        }
+
+        .panel.open .panel-arrow {
+            transform: rotate(180deg);
+            color: rgba(255,255,255,0.9);
+        }
+
+        /* ── LINK DRAWER ── */
+        .link-drawer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                        opacity 0.25s ease;
+            opacity: 0;
+            background: var(--cream);
+            border-left: 3px solid var(--rule);
+        }
+
+        .panel-1 .link-drawer { border-left-color: var(--panel-1); }
+        .panel-2 .link-drawer { border-left-color: var(--panel-2); }
+        .panel-3 .link-drawer { border-left-color: var(--panel-3); }
+
+        .panel.open .link-drawer {
+            max-height: 500px;
+            opacity: 1;
+        }
+
+        .link-drawer ul {
+            margin: 0;
+            padding: 1.2rem 1.4rem;
+            list-style: none;
+        }
+
+        .link-drawer li {
+            border-bottom: 1px dotted #ccc;
+        }
+
+        .link-drawer li:last-child {
+            border-bottom: none;
+        }
+
+        .link-drawer a {
+            display: block;
+            padding: 0.55rem 0;
+            font-family: 'Courier Prime', monospace;
+            font-size: 0.88rem;
+            color: var(--ink);
+            text-decoration: none;
+            letter-spacing: 0.03em;
+            transition: color 0.15s ease, padding-left 0.15s ease;
+        }
+
+        .link-drawer a:hover {
+            padding-left: 0.5rem;
+            color: var(--accent);
+        }
+
+        .link-drawer a .link-label {
+            display: block;
+            font-weight: 700;
+        }
+
+        .link-drawer a .link-desc {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--muted);
+            font-weight: 400;
+            margin-top: 0.1rem;
+        }
+
+        footer {
+            text-align: center;
+            padding: 2.5rem;
+            font-size: 0.8rem;
+            color: var(--muted);
+            font-family: 'Courier Prime', monospace;
+            letter-spacing: 0.05em;
+            margin-top: 3rem;
+            border-top: 1px solid #ccc;
+        }
+
+        @media (max-width: 680px) {
+            .panels { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>LLM Development Diary</h1>
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="reports.html">Reports</a>
+        <a href="analysis.html">Analysis</a>
+        <a href="experiments.html">Experiments</a>
+        <a href="people.html">People</a>
+    </nav>
+</header>
+
+<main>
+    <p class="hub-title">Navigation — Select a section</p>
+
+    <div class="panels" id="hub-panels">
+        <!-- Panels are rendered by nav-config.js -->
+    </div>
+</main>
+
+<footer>© LLM Research Diary</footer>
+
+<script src="js/nav-config.js"></script>
+<script src="js/hub-loader.js"></script>
+
+</body>
+</html>
