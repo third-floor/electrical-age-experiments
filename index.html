@@ -107,7 +107,7 @@
         .about-strip {
             margin: 2.8rem 0 0;
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 3fr 2fr;
             gap: 0;
             border: 1px solid #d4cfc4;
             background: white;
@@ -123,6 +123,15 @@
             background: var(--cream);
             font-size: 0.88rem;
             line-height: 1.65;
+        }
+
+        .about-note {
+            font-size: 0.88rem !important;
+            color: #555 !important;
+            font-style: italic;
+            border-left: 3px solid #d4cfc4;
+            padding-left: 0.9rem;
+            margin-top: 1.2rem !important;
         }
 
         .section-label {
@@ -391,9 +400,28 @@
             </p>
             <p>
                 The work was carried out in collaboration with the
-                <strong>IET Archives</strong> (Institute of Engineering and Technology), with supporting
+                <strong><a class="ext-link" href="https://www.theiet.org/membership/library-and-archives/the-iet-archives" target="_blank" rel="noopener">IET Archives</a></strong>
+                (<a class="ext-link" href="https://www.theiet.org/" target="_blank" rel="noopener">Institute of Engineering and Technology</a>), with supporting
                 funding provided by the <strong>University of Leeds</strong>. Technical development was
                 led by <strong>Dr Daniel Belteki</strong>.
+            </p>
+            <p>
+                The project created various experimental outputs that you can find on this page. They include
+                a <a class="ext-link" href="https://third-floor.github.io/electrical-age-experiments/people.html" target="_blank" rel="noopener">searchable dataset of individuals</a> mentioned in the journal,
+                a <a class="ext-link" href="https://third-floor.github.io/electrical-age-experiments/locations.html" target="_blank" rel="noopener">searchable dataset of locations</a> mentioned in the journal,
+                and a <a class="ext-link" href="https://third-floor.github.io/electrical-age-experiments/articles.html" target="_blank" rel="noopener">searchable dataset of articles and advertisements</a> mentioned in the journal.
+            </p>
+            <p>
+                We also created tools that provide insights into the generated data. The
+                <a class="ext-link" href="https://third-floor.github.io/electrical-age-experiments/persons_explorer.html" target="_blank" rel="noopener">Persons Explorer</a>
+                tool gives statistical information about the presence of a person in the journal, while the
+                <a class="ext-link" href="https://third-floor.github.io/electrical-age-experiments/person_network.html" target="_blank" rel="noopener">Person Network</a>
+                tool lets you drill into the individual connections to locations and people frequently mentioned alongside a person. The
+                <a class="ext-link" href="https://third-floor.github.io/electrical-age-experiments/connections_explorer.html" target="_blank" rel="noopener">Connections Explorer</a>
+                tool lets you find connections (based on page-proximity) to other people, locations, articles and advertisements mentioned in the journal. There are other tools you can also explore.
+            </p>
+            <p class="about-note">
+                The original dataset was extracted from the journal using Gemini 2.5 Flash and Gemini 2.0 Flash. Since this is an experiment, the generated data at large scale may contain errors. Although manual review was undertaken for parts of the produced output, we are still in the process of reviewing it and making changes. When using the guide, we recommend always consulting the digitised versions of the issue referenced in the dataset for confirming the accuracy of the information.
             </p>
         </div>
         <div class="about-sidebar">
