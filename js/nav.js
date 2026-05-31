@@ -1,17 +1,20 @@
 /**
  * nav.js — Shared navigation for the Electrical Age Journal site.
- * Drop <script src="js/nav.js"></script> anywhere in <head> or <body>.
- * Replace your existing <header>…</header> with just:
+ * Add <script src="js/nav.js"></script> to <head> or <body>.
  *
- *   <header id="site-header"></header>
+ * Two modes:
+ *   A) <header id="site-header"></header>   (empty)
+ *      → Full header injected: dark background + wordmark + nav strip.
+ *        Use on all pages except index.html.
+ *
+ *   B) <header id="site-header"> ...content... </header>  (has children)
+ *      → Nav strip APPENDED only. Header background/border left to the
+ *        page's own CSS. Use on index.html.
  */
 
 function injectSiteNav() {
   const GROUPS = [
-    {
-      label: "Home",
-      href: "index.html",   // plain link, no dropdown
-    },
+    { label: "Home", href: "index.html" },
     {
       label: "Search",
       pages: [
@@ -52,7 +55,8 @@ function injectSiteNav() {
     const style = document.createElement("style");
     style.id = "site-nav-styles";
     style.textContent = `
-      #site-header {
+      /* Applied in Mode A (full injection) only — gives non-index pages their header */
+      #site-header.nav-full {
         background: #2c2c2c;
         color: white;
         padding: 0;
@@ -77,10 +81,12 @@ function injectSiteNav() {
       }
       .site-header-wordmark:hover { color: #ddd; }
 
-      /* ── Nav bar ── */
+      /* Nav strip — shared by both modes */
       .site-nav {
         border-top: 1px solid rgba(255,255,255,0.12);
         padding: 0;
+        position: relative;
+        z-index: 1000;
       }
       .site-nav-inner {
         display: flex;
@@ -88,7 +94,7 @@ function injectSiteNav() {
         gap: 0;
       }
 
-      /* ── Plain home link ── */
+      /* Plain home link */
       .site-nav .nav-home {
         display: block;
         padding: 0.52rem 0.9rem;
@@ -113,12 +119,10 @@ function injectSiteNav() {
         background: rgba(255,255,255,0.04);
       }
 
-      /* ── Dropdown wrapper ── */
-      .nav-dropdown {
-        position: relative;
-      }
+      /* Dropdown wrapper */
+      .nav-dropdown { position: relative; }
 
-      /* ── Dropdown trigger button ── */
+      /* Dropdown trigger */
       .nav-dropdown-btn {
         display: flex;
         align-items: center;
@@ -143,7 +147,6 @@ function injectSiteNav() {
         background: rgba(255,255,255,0.06);
         border-bottom-color: rgba(255,255,255,0.25);
       }
-      /* Active group: any child page is current */
       .nav-dropdown.has-current .nav-dropdown-btn {
         color: #fff;
         border-bottom-color: #8b1a1a;
@@ -155,11 +158,9 @@ function injectSiteNav() {
         transition: transform 0.2s ease;
         display: inline-block;
       }
-      .nav-dropdown.open .nav-dropdown-caret {
-        transform: rotate(180deg);
-      }
+      .nav-dropdown.open .nav-dropdown-caret { transform: rotate(180deg); }
 
-      /* ── Dropdown panel ── */
+      /* Dropdown panel */
       .nav-dropdown-panel {
         display: none;
         position: absolute;
@@ -172,9 +173,7 @@ function injectSiteNav() {
         box-shadow: 0 6px 20px rgba(0,0,0,0.4);
         z-index: 2000;
       }
-      .nav-dropdown.open .nav-dropdown-panel {
-        display: block;
-      }
+      .nav-dropdown.open .nav-dropdown-panel { display: block; }
       .nav-dropdown-panel a {
         display: block;
         padding: 0.55rem 1rem;
@@ -203,21 +202,17 @@ function injectSiteNav() {
     document.head.appendChild(style);
   }
 
-  /* ── Build nav HTML ── */
+  /* ── Build nav items ── */
   const items = GROUPS.map(group => {
     if (group.href) {
-      // Plain link (Home)
       const isCurrent = group.href === currentFile;
       return `<a href="${group.href}" class="nav-home${isCurrent ? ' nav-current' : ''}"${isCurrent ? ' aria-current="page"' : ''}>${group.label}</a>`;
     }
-
-    // Dropdown group
     const hasCurrentChild = group.pages.some(p => p.href === currentFile);
     const links = group.pages.map(p => {
       const isCurrent = p.href === currentFile;
       return `<a href="${p.href}"${isCurrent ? ' class="nav-current" aria-current="page"' : ''}>${p.label}</a>`;
     }).join("");
-
     return `
       <div class="nav-dropdown${hasCurrentChild ? ' has-current' : ''}">
         <button class="nav-dropdown-btn" aria-haspopup="true" aria-expanded="false">
@@ -227,28 +222,34 @@ function injectSiteNav() {
       </div>`;
   }).join("");
 
-  /* ── Inject header ── */
+  const navHTML = `
+    <nav class="site-nav" aria-label="Site navigation">
+      <div class="site-nav-inner">${items}</div>
+    </nav>`;
+
+  /* ── Inject ── */
   const target = document.getElementById("site-header");
   if (!target) return;
 
-  target.innerHTML = `
-    <div class="site-header-inner">
-      <a href="index.html" class="site-header-wordmark">Exploring the Electrical Age Journal</a>
-    </div>
-    <nav class="site-nav" aria-label="Site navigation">
-      <div class="site-nav-inner">
-        ${items}
+  if (target.children.length === 0) {
+    /* Mode A: empty — full injection, add class for background styles */
+    target.classList.add("nav-full");
+    target.innerHTML = `
+      <div class="site-header-inner">
+        <a href="index.html" class="site-header-wordmark">Exploring the Electrical Age Journal</a>
       </div>
-    </nav>
-  `;
+      ${navHTML}`;
+  } else {
+    /* Mode B: has content (index.html) — append nav strip only, leave bg alone */
+    target.insertAdjacentHTML("beforeend", navHTML);
+  }
 
-  /* ── Dropdown toggle logic ── */
+  /* ── Dropdown logic ── */
   target.querySelectorAll(".nav-dropdown").forEach(dropdown => {
     const btn = dropdown.querySelector(".nav-dropdown-btn");
     btn.addEventListener("click", e => {
       e.stopPropagation();
       const isOpen = dropdown.classList.contains("open");
-      // Close all others
       target.querySelectorAll(".nav-dropdown.open").forEach(d => {
         d.classList.remove("open");
         d.querySelector(".nav-dropdown-btn").setAttribute("aria-expanded", "false");
@@ -260,7 +261,6 @@ function injectSiteNav() {
     });
   });
 
-  // Close on outside click
   document.addEventListener("click", () => {
     target.querySelectorAll(".nav-dropdown.open").forEach(d => {
       d.classList.remove("open");
@@ -269,7 +269,6 @@ function injectSiteNav() {
   });
 }
 
-/* ── Wait for DOM if needed ── */
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", injectSiteNav);
 } else {
