@@ -1,27 +1,28 @@
 /**
  * nav.js — Shared navigation for the Electrical Age Journal site.
- * Drop <script src="js/nav.js"></script> into any page's <head> or <body>,
- * and replace your existing <header>…</header> with:
+ * Drop <script src="js/nav.js"></script> anywhere in <head> or <body>.
+ * Replace your existing <header>…</header> with just:
  *
  *   <header id="site-header"></header>
  *
- * The script will fill it in automatically and mark the current page active.
+ * The script waits for the DOM to be ready before injecting, so it works
+ * whether the <script> tag is in <head> or at the bottom of <body>.
  */
 
-(function () {
+function injectSiteNav() {
   const PAGES = [
-    { href: "index.html",               label: "Home" },
-    { href: "reports.html",             label: "Reports" },
-    { href: "analysis.html",            label: "Analysis" },
-    { href: "experiments.html",         label: "Experiments" },
-    { href: "people.html",              label: "People" },
-    { href: "persons_explorer.html",    label: "Persons Explorer" },
-    { href: "person_network.html",      label: "Person Network" },
-    { href: "locations.html",           label: "Locations" },
-    { href: "locations_explorer.html",  label: "Location Explorer" },
-    { href: "articles.html",            label: "Articles" },
-    { href: "portraits.html",           label: "Portraits" },
-    { href: "connections_explorer.html",label: "Connections" },
+    { href: "index.html",                label: "Home" },
+    { href: "reports.html",              label: "Reports" },
+    { href: "analysis.html",             label: "Analysis" },
+    { href: "experiments.html",          label: "Experiments" },
+    { href: "people.html",               label: "People" },
+    { href: "persons_explorer.html",     label: "Persons Explorer" },
+    { href: "person_network.html",       label: "Person Network" },
+    { href: "locations.html",            label: "Locations" },
+    { href: "locations_explorer.html",   label: "Location Explorer" },
+    { href: "articles.html",             label: "Articles" },
+    { href: "portraits.html",            label: "Portraits" },
+    { href: "connections_explorer.html", label: "Connections" },
   ];
 
   /* ── Identify the current page ── */
@@ -38,7 +39,6 @@
     const style = document.createElement("style");
     style.id = "site-nav-styles";
     style.textContent = `
-      /* ── Site header & nav injected by nav.js ── */
       #site-header {
         background: #2c2c2c;
         color: white;
@@ -68,8 +68,6 @@
         white-space: nowrap;
       }
       .site-header-wordmark:hover { color: #ddd; }
-
-      /* ── Nav strip ── */
       .site-nav {
         border-top: 1px solid rgba(255,255,255,0.12);
         padding: 0;
@@ -94,8 +92,7 @@
         color: rgba(255,255,255,0.5);
         text-decoration: none;
         border-bottom: 3px solid transparent;
-        transition: color 0.15s ease, border-color 0.15s ease,
-                    background 0.15s ease;
+        transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
         white-space: nowrap;
       }
       .site-nav a:hover {
@@ -112,9 +109,9 @@
     document.head.appendChild(style);
   }
 
-  /* ── Build & inject the header HTML ── */
+  /* ── Find the placeholder and inject ── */
   const target = document.getElementById("site-header");
-  if (!target) return; // nothing to do if no placeholder found
+  if (!target) return;
 
   target.innerHTML = `
     <div class="site-header-inner">
@@ -128,4 +125,11 @@
       </div>
     </nav>
   `;
-})();
+}
+
+/* ── Wait for DOM if needed, then run ── */
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", injectSiteNav);
+} else {
+  injectSiteNav(); // DOM already ready (script placed at end of body)
+}
