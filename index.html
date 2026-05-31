@@ -5,6 +5,7 @@
     <meta name="description" content="Digital experiments for exploring the content of The Electrical Age Journal">
     <title>Exploring the Electrical Age Journal</title>
     <link rel="stylesheet" href="css/style.css">
+    <script src="js/nav.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Courier+Prime:wght@400;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap');
 
@@ -31,18 +32,11 @@
             line-height: 1.7;
         }
 
-        /* ── MASTHEAD ── */
-        header {
-            background: var(--rule);
-            color: white;
-            padding: 0;
-            border-bottom: 4px solid var(--accent);
-        }
-
+        /* ── MASTHEAD (index-only extra styles) ── */
         .masthead-inner {
             max-width: 1000px;
             margin: 0 auto;
-            padding: 2rem 1.5rem 1.4rem;
+            padding: 2rem 1.5rem 1rem;
         }
 
         .masthead-rule-top {
@@ -66,35 +60,9 @@
             font-style: italic;
             font-size: 1.05rem;
             color: rgba(255,255,255,0.65);
-            margin: 0 0 1.2rem 0;
+            margin: 0 0 0;
             letter-spacing: 0.01em;
         }
-
-        .masthead-rule-bottom {
-            border: none;
-            border-top: 1px solid rgba(255,255,255,0.18);
-            margin: 0 0 0.9rem 0;
-        }
-
-        nav {
-            margin: 0;
-            font-family: 'Courier Prime', monospace;
-            font-size: 0.73rem;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.2rem 0;
-        }
-
-        nav a {
-            color: rgba(255,255,255,0.55);
-            margin-right: 1.4rem;
-            text-decoration: none;
-            transition: color 0.15s ease;
-        }
-
-        nav a:hover { color: white; }
 
         /* ── MAIN ── */
         main {
@@ -121,17 +89,17 @@
         .about-sidebar {
             padding: 2rem 2rem;
             background: var(--cream);
-            font-size: 0.88rem;
+            font-size: 0.92rem;
             line-height: 1.65;
         }
 
         .about-note {
-            font-size: 0.88rem !important;
+            font-size: 0.85rem !important;
             color: #555 !important;
             font-style: italic;
             border-left: 3px solid #d4cfc4;
             padding-left: 0.9rem;
-            margin-top: 1.2rem !important;
+            margin-top: 0 !important;
         }
 
         .section-label {
@@ -167,6 +135,12 @@
         }
 
         .about-sidebar p:last-child { margin-bottom: 0; }
+
+        .sidebar-divider {
+            border: none;
+            border-top: 1px solid #d4cfc4;
+            margin: 1.1rem 0;
+        }
 
         .ext-link {
             color: var(--accent);
@@ -368,22 +342,13 @@
 </head>
 <body>
 
-<header>
+<!-- nav.js injects the shared header + dropdown nav into this element -->
+<header id="site-header">
+    <!-- index-only: title & subtitle sit above the shared nav strip -->
     <div class="masthead-inner">
         <hr class="masthead-rule-top">
         <h1 class="masthead-title">Exploring the Electrical Age Journal</h1>
         <p class="masthead-subtitle">Digital experiments for exploring the content of The Electrical Age Journal</p>
-        <hr class="masthead-rule-bottom">
-        <nav>
-            <a href="reports.html">Reports</a>
-            <a href="analysis.html">Analysis</a>
-            <a href="experiments.html">Experiments</a>
-            <a href="people.html">People</a>
-            <a href="portraits.html">Portraits</a>
-            <a href="locations.html">Locations</a>
-            <a href="articles.html">Articles</a>
-            <a href="connections_explorer.html">Connections</a>
-        </nav>
     </div>
 </header>
 
@@ -397,13 +362,6 @@
                 This project carried out digital and AI experiments to explore <em>The Electrical Age</em>,
                 making its contents more accessible, discoverable, and ready for historical and
                 computational analysis.
-            </p>
-            <p>
-                The work was carried out in collaboration with the
-                <strong><a class="ext-link" href="https://www.theiet.org/membership/library-and-archives/the-iet-archives" target="_blank" rel="noopener">IET Archives</a></strong>
-                (<a class="ext-link" href="https://www.theiet.org/" target="_blank" rel="noopener">Institute of Engineering and Technology</a>), with supporting
-                funding provided by the <strong>University of Leeds</strong>. Technical development was
-                led by <strong>Dr Daniel Belteki</strong>.
             </p>
             <p>
                 The project created various experimental outputs that you can find on this page. They include
@@ -420,21 +378,28 @@
                 <a class="ext-link" href="https://third-floor.github.io/electrical-age-experiments/connections_explorer.html" target="_blank" rel="noopener">Connections Explorer</a>
                 tool lets you find connections (based on page-proximity) to other people, locations, articles and advertisements mentioned in the journal. There are other tools you can also explore.
             </p>
-            <p class="about-note">
-                The original dataset was extracted from the journal using Gemini 2.5 Flash and Gemini 2.0 Flash. Since this is an experiment, the generated data at large scale may contain errors. Although manual review was undertaken for parts of the produced output, we are still in the process of reviewing it and making changes. When using the guide, we recommend always consulting the digitised versions of the issue referenced in the dataset for confirming the accuracy of the information.
-            </p>
         </div>
         <div class="about-sidebar">
-            <p class="section-label">Further reading</p>
+            <p class="section-label">Further information</p>
+            <p>
+                The work was carried out in collaboration with the
+                <strong><a class="ext-link" href="https://www.theiet.org/membership/library-and-archives/the-iet-archives" target="_blank" rel="noopener">IET Archives</a></strong>
+                (<a class="ext-link" href="https://www.theiet.org/" target="_blank" rel="noopener">Institute of Engineering and Technology</a>), with supporting
+                funding provided by the <strong>University of Leeds</strong>. Technical development was
+                led by <strong>Dr Daniel Belteki</strong>.
+            </p>
+            <hr class="sidebar-divider">
             <p>
                 For more information about <em>The Electrical Age Journal</em>, visit the
                 <a class="ext-link"
                    href="https://www.theiet.org/membership/library-and-archives/the-iet-archives/online-exhibitions/women-and-engineering/the-electrical-age-journal"
                    target="_blank" rel="noopener">IET Archives online exhibition</a>.
-            </p>
-            <p>
                 Digitised issues of the journal can be downloaded in PDF format as ZIP files
-                at the bottom of the page linked above.
+                at the bottom of that page.
+            </p>
+            <hr class="sidebar-divider">
+            <p class="about-note">
+                The original dataset was extracted from the journal using Gemini 2.5 Flash and Gemini 3 Flash. Since this is an experiment, the generated data at large scale may contain errors. Although manual review was undertaken for parts of the produced output, we are still in the process of reviewing it and making changes. When using the guide, we recommend always consulting the digitised versions of the issue referenced in the dataset for confirming the accuracy of the information.
             </p>
         </div>
     </div>
