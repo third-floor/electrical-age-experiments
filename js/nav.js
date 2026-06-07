@@ -102,8 +102,7 @@ function injectSiteNav() {
         border-bottom: 2px solid #8b1a1a;
         box-shadow: 0 2px 12px rgba(0,0,0,0.35);
       }
-      /* Padding shim so page content isn't hidden under the overlay */
-      body.has-nav-overlay { padding-top: var(--nav-overlay-h, 36px); }
+
 
       /* Nav strip — shared by all modes */
       .site-nav {
@@ -267,12 +266,16 @@ function injectSiteNav() {
     overlay.innerHTML = navHTML;
     document.body.prepend(overlay);
 
-    // Measure the bar height and push body content down by that amount
-    requestAnimationFrame(() => {
+    // Measure the bar height and expose it as a CSS variable on :root.
+    // Pages that use overlay mode can then write:
+    //   height: calc(100vh - var(--nav-overlay-h, 0px))
+    // to size themselves correctly without any layout shift.
+    function applyOverlayHeight() {
       const h = overlay.offsetHeight;
       document.documentElement.style.setProperty("--nav-overlay-h", h + "px");
-      document.body.classList.add("has-nav-overlay");
-    });
+    }
+    requestAnimationFrame(applyOverlayHeight);
+    window.addEventListener("resize", applyOverlayHeight);
 
     attachDropdownLogic(overlay);
 
