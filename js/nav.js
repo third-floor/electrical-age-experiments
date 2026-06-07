@@ -271,10 +271,14 @@ function injectSiteNav() {
     //   height: calc(100vh - var(--nav-overlay-h, 0px))
     // to size themselves correctly without any layout shift.
     function applyOverlayHeight() {
-      const h = overlay.offsetHeight;
-      document.documentElement.style.setProperty("--nav-overlay-h", h + "px");
+      const h = overlay.getBoundingClientRect().height;
+      if (h > 0) document.documentElement.style.setProperty("--nav-overlay-h", h + "px");
     }
+    // Set immediately (overlay is already in DOM), then again after paint
+    // to capture any sub-pixel or font-load adjustments.
+    applyOverlayHeight();
     requestAnimationFrame(applyOverlayHeight);
+    setTimeout(applyOverlayHeight, 200);
     window.addEventListener("resize", applyOverlayHeight);
 
     attachDropdownLogic(overlay);
