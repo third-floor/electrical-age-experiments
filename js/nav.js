@@ -2,14 +2,21 @@
  * nav.js — Shared navigation for the Electrical Age Journal site.
  * Add <script src="js/nav.js"></script> to <head> or <body>.
  *
- * Two modes:
- *   A) <header id="site-header"></header>   (empty)
- *      → Full header injected: dark background + wordmark + nav strip.
- *        Use on all pages except index.html.
+ * Three modes, detected automatically from the <header id="site-header"> element:
  *
- *   B) <header id="site-header"> ...content... </header>  (has children)
- *      → Nav strip APPENDED only. Header background/border left to the
- *        page's own CSS. Use on index.html.
+ *   A) <header id="site-header"></header>   (empty)
+ *      → Full dark header injected: background + wordmark + nav strip.
+ *        Use on all inner pages (people, articles, connections, etc.)
+ *
+ *   B) <header id="site-header"> ...existing content... </header>
+ *      → Nav strip APPENDED after existing content, background left to page CSS.
+ *        Use on index.html where the big title/subtitle lives inside the header.
+ *
+ *   C) <header id="site-header" data-nav-mode="overlay"></header>
+ *      → Nav strip injected as a slim overlay bar at the top of the page,
+ *        positioned absolutely so it floats over the page content without
+ *        affecting layout. Use on full-viewport pages (the branch map) that
+ *        manage their own layout and cannot afford an extra row in the grid.
  */
 
 function injectSiteNav() {
@@ -30,6 +37,7 @@ function injectSiteNav() {
         { href: "person_network.html",       label: "Person Network" },
         { href: "locations_explorer.html",   label: "Location Explorer" },
         { href: "connections_explorer.html", label: "Connections Explorer" },
+        { href: "eaw_branches_map.html", label: "Branch Map" },
       ],
     },
     {
@@ -42,20 +50,20 @@ function injectSiteNav() {
     {
       label: "Experiments",
       pages: [
-        { href: "experiments.html", label: "Experiments" },
-        { href: "portraits.html",   label: "Portraits" },
+        { href: "experiments.html",      label: "Experiments" },
+        { href: "portraits.html",        label: "Portraits" },
       ],
     },
   ];
 
   const currentFile = window.location.pathname.split("/").pop() || "index.html";
 
-  /* ── Styles ── */
+  /* ── Inject styles (once) ── */
   if (!document.getElementById("site-nav-styles")) {
     const style = document.createElement("style");
     style.id = "site-nav-styles";
     style.textContent = `
-      /* Applied in Mode A (full injection) only — gives non-index pages their header */
+      /* Mode A: full dark header */
       #site-header.nav-full {
         background: #2c2c2c;
         color: white;
@@ -81,12 +89,34 @@ function injectSiteNav() {
       }
       .site-header-wordmark:hover { color: #ddd; }
 
-      /* Nav strip — shared by both modes */
+      /* Mode C: overlay nav bar (floats over full-viewport pages) */
+      #site-nav-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 9000;
+        background: rgba(26, 26, 26, 0.92);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        border-bottom: 2px solid #8b1a1a;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.35);
+      }
+      /* Padding shim so page content isn't hidden under the overlay */
+      body.has-nav-overlay { padding-top: var(--nav-overlay-h, 36px); }
+
+      /* Nav strip — shared by all modes */
       .site-nav {
         border-top: 1px solid rgba(255,255,255,0.12);
         padding: 0;
         position: relative;
         z-index: 1000;
+      }
+      /* No top border when nav is the very first child (Mode A wordmark above it,
+         or Mode C where there's nothing above) */
+      #site-nav-overlay .site-nav,
+      #site-header.nav-full .site-nav:first-child {
+        border-top: none;
       }
       .site-nav-inner {
         display: flex;
@@ -122,7 +152,7 @@ function injectSiteNav() {
       /* Dropdown wrapper */
       .nav-dropdown { position: relative; }
 
-      /* Dropdown trigger */
+      /* Dropdown trigger button */
       .nav-dropdown-btn {
         display: flex;
         align-items: center;
@@ -202,19 +232,19 @@ function injectSiteNav() {
     document.head.appendChild(style);
   }
 
-  /* ── Build nav items ── */
+  /* ── Build nav HTML ── */
   const items = GROUPS.map(group => {
     if (group.href) {
       const isCurrent = group.href === currentFile;
-      return `<a href="${group.href}" class="nav-home${isCurrent ? ' nav-current' : ''}"${isCurrent ? ' aria-current="page"' : ''}>${group.label}</a>`;
+      return `<a href="${group.href}" class="nav-home${isCurrent ? " nav-current" : ""}"${isCurrent ? ' aria-current="page"' : ""}>${group.label}</a>`;
     }
     const hasCurrentChild = group.pages.some(p => p.href === currentFile);
     const links = group.pages.map(p => {
       const isCurrent = p.href === currentFile;
-      return `<a href="${p.href}"${isCurrent ? ' class="nav-current" aria-current="page"' : ''}>${p.label}</a>`;
+      return `<a href="${p.href}"${isCurrent ? ' class="nav-current" aria-current="page"' : ""}>${p.label}</a>`;
     }).join("");
     return `
-      <div class="nav-dropdown${hasCurrentChild ? ' has-current' : ''}">
+      <div class="nav-dropdown${hasCurrentChild ? " has-current" : ""}">
         <button class="nav-dropdown-btn" aria-haspopup="true" aria-expanded="false">
           ${group.label}<span class="nav-dropdown-caret">▼</span>
         </button>
@@ -227,46 +257,65 @@ function injectSiteNav() {
       <div class="site-nav-inner">${items}</div>
     </nav>`;
 
-  /* ── Inject ── */
+  /* ── Detect mode and inject ── */
   const target = document.getElementById("site-header");
-  if (!target) return;
 
-  if (target.children.length === 0) {
-    /* Mode A: empty — full injection, add class for background styles */
+  if (target && target.dataset.navMode === "overlay") {
+    /* ── Mode C: full-viewport page — inject a fixed overlay bar ── */
+    const overlay = document.createElement("div");
+    overlay.id = "site-nav-overlay";
+    overlay.innerHTML = navHTML;
+    document.body.prepend(overlay);
+
+    // Measure the bar height and push body content down by that amount
+    requestAnimationFrame(() => {
+      const h = overlay.offsetHeight;
+      document.documentElement.style.setProperty("--nav-overlay-h", h + "px");
+      document.body.classList.add("has-nav-overlay");
+    });
+
+    attachDropdownLogic(overlay);
+
+  } else if (target && target.children.length === 0) {
+    /* ── Mode A: empty header — inject wordmark + nav ── */
     target.classList.add("nav-full");
     target.innerHTML = `
       <div class="site-header-inner">
         <a href="index.html" class="site-header-wordmark">Exploring the Electrical Age Journal</a>
       </div>
       ${navHTML}`;
-  } else {
-    /* Mode B: has content (index.html) — append nav strip only, leave bg alone */
+    attachDropdownLogic(target);
+
+  } else if (target) {
+    /* ── Mode B: index.html — append nav strip after existing content ── */
     target.insertAdjacentHTML("beforeend", navHTML);
+    attachDropdownLogic(target);
   }
 
-  /* ── Dropdown logic ── */
-  target.querySelectorAll(".nav-dropdown").forEach(dropdown => {
-    const btn = dropdown.querySelector(".nav-dropdown-btn");
-    btn.addEventListener("click", e => {
-      e.stopPropagation();
-      const isOpen = dropdown.classList.contains("open");
-      target.querySelectorAll(".nav-dropdown.open").forEach(d => {
+  function attachDropdownLogic(root) {
+    root.querySelectorAll(".nav-dropdown").forEach(dropdown => {
+      const btn = dropdown.querySelector(".nav-dropdown-btn");
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        const isOpen = dropdown.classList.contains("open");
+        root.querySelectorAll(".nav-dropdown.open").forEach(d => {
+          d.classList.remove("open");
+          d.querySelector(".nav-dropdown-btn").setAttribute("aria-expanded", "false");
+        });
+        if (!isOpen) {
+          dropdown.classList.add("open");
+          btn.setAttribute("aria-expanded", "true");
+        }
+      });
+    });
+
+    document.addEventListener("click", () => {
+      root.querySelectorAll(".nav-dropdown.open").forEach(d => {
         d.classList.remove("open");
         d.querySelector(".nav-dropdown-btn").setAttribute("aria-expanded", "false");
       });
-      if (!isOpen) {
-        dropdown.classList.add("open");
-        btn.setAttribute("aria-expanded", "true");
-      }
     });
-  });
-
-  document.addEventListener("click", () => {
-    target.querySelectorAll(".nav-dropdown.open").forEach(d => {
-      d.classList.remove("open");
-      d.querySelector(".nav-dropdown-btn").setAttribute("aria-expanded", "false");
-    });
-  });
+  }
 }
 
 if (document.readyState === "loading") {
