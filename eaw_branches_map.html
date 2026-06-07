@@ -17,6 +17,7 @@
 
   <style>
     :root {
+      --nav-overlay-h: 0px;
       --bg: #f4f7fb;
       --panel: #ffffff;
       --text: #14213d;
@@ -42,8 +43,8 @@
     }
 
     .page {
-      height: 100vh;
-      height: 100dvh;
+      height: calc(100vh - var(--nav-overlay-h, 0px));
+      height: calc(100dvh - var(--nav-overlay-h, 0px));
       display: grid;
       grid-template-rows: minmax(0,1fr);
     }
